@@ -1,7 +1,5 @@
 # MediApp - Plataforma de Gestión Médica
 
-![Banner de MediApp](https://via.placeholder.com/1200x400/3b82f6/ffffff?text=MediApp+Platform)
-
 MediApp es una aplicación web moderna desarrollada con Next.js que facilita el monitoreo de medicamentos, historiales de pacientes y seguimiento de tratamientos.
 
 ## 🚀 Características Principales
@@ -184,10 +182,6 @@ Para crear un usuario administrador inicial (requiere `DATA_KEY_HEX` válido):
 node scripts/createAdmin.js
 ```
 
-Credenciales por defecto creadas por el script:
-- Usuario: `admin2025@`
-- Contraseña: `admin2025@`
-
 ## 📄 Licencia
 
-Este proyecto está licenciado bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para más detalles.
+Este proyecto está licenciado bajo la Licencia MIT.
