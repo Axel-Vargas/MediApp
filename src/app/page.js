@@ -1,103 +1,90 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { useUser } from "@/context/userContext";
+import { userService } from "@/lib/services/userService";
+import NavigationTabs from "@/components/NavigationTabs";
+import "@/globals.css";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.js
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const { user, loading, handleLogin, handleRegister, getCaregivers, allUsers } = useUser();
+  const router = useRouter();
+  const pathname = usePathname();
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+  // Obtener solo doctores autorizados
+  const caregivers = allUsers.filter(u => {
+    const isDoctor = u.rol === 'doctor';
+    const isAuthorized = u.autorizado === true || u.autorizado === 1 || u.doctor_autorizado === true || u.doctor_autorizado === 1;
+    return isDoctor && isAuthorized;
+  }) || [];
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || loading) {
+      return;
+    }
+
+    const currentPath = window.location.pathname;
+
+    // Definir rutas protegidas
+    const protectedRoutes = {
+      doctor: ['/caregiver/assign', '/caregiver'],
+      paciente: ['/patient/medications', '/patient'],
+      all: ['/caregiver/assign', '/caregiver', '/patient/medications', '/patient']
+    };
+
+    // Si hay un usuario autenticado
+    if (user) {
+      if (currentPath === "/") {
+        let targetPath = "/";
+        
+        if (user.rol === "paciente") {
+          targetPath = "/patient/medications";
+        } else if (user.rol === "doctor") {
+          targetPath = "/caregiver/assign";
+        } else {
+          console.warn(`[Home] Rol no reconocido: "${user.rol}", redirigiendo a inicio`);
+          targetPath = "/";
+        }
+        
+        if (currentPath !== targetPath) {
+          router.replace(targetPath);
+        }
+      }
+      // Si está en una ruta que no coincide con su rol, redirigir a la ruta correcta
+      else if (user.rol === 'doctor' && !protectedRoutes.doctor.some(route => currentPath.startsWith(route)) ||
+               user.rol === 'paciente' && !protectedRoutes.paciente.some(route => currentPath.startsWith(route))) {
+        const targetPath = user.rol === 'doctor' ? '/caregiver/assign' : '/patient/medications';
+        router.replace(targetPath);
+      }
+    }
+    // Si no hay usuario autenticado y está en una ruta protegida, redirigir al inicio
+    else if (protectedRoutes.all.some(route => currentPath.startsWith(route))) {
+      router.replace('/');
+    }
+  }, [loading, user, pathname]);
+
+  const isProtectedRoute = [
+    '/caregiver/assign', '/caregiver', '/patient/medications', '/patient'
+  ].some(route => pathname.startsWith(route));
+
+  if (loading && (user || isProtectedRoute)) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (pathname === "/") {
+    return (
+      <NavigationTabs
+        isPatient={false}
+        caregivers={caregivers}
+        onLogin={handleLogin}
+        onRegister={handleRegister}
+      />
+    );
+  }
+
 }
