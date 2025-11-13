@@ -137,10 +137,75 @@ export const UserProvider = ({ children }) => {
   const [medicationHistory, setMedicationHistory] = useState({});
   const medicationHistoryLoadingRef = useRef({});
 
-  // Mostrar advertencia de inactividad
-  // Nota: handleInactiveLogout se define después de handleLogout
+  // Referencia para handleInactiveLogout (se asignará después de definirse)
   const showWarningRef = useRef(null);
 
+  // Cerrar sesión (definir temprano para uso en otras funciones)
+  const handleLogout = () => {
+    try {
+      authManager.clearTimers();
+      setShowInactivityWarning(false);
+      if (inactivityWarningRef.current) {
+        clearTimeout(inactivityWarningRef.current);
+        inactivityWarningRef.current = null;
+      }
+
+      activityHandlersRef.current.forEach(handler => {
+        window.removeEventListener('mousemove', handler);
+        window.removeEventListener('keydown', handler);
+        window.removeEventListener('scroll', handler);
+        window.removeEventListener('click', handler);
+        window.removeEventListener('touchstart', handler);
+      });
+      activityHandlersRef.current.clear();
+
+      setUser(null);
+      setSelectedPatient(null);
+      setPacienteId(null);
+      setError(null);
+      pacienteIdLoadingRef.current = false;
+
+      setPatientMedications([]);
+      setPatientFamilyMembers([]);
+      setPatientDoctor(null);
+      patientDataCache.medications.data = null;
+      patientDataCache.medications.pacienteId = null;
+      patientDataCache.medications.timestamp = null;
+      patientDataCache.familyMembers.data = null;
+      patientDataCache.familyMembers.pacienteId = null;
+      patientDataCache.familyMembers.timestamp = null;
+      patientDataCache.doctor.data = null;
+      patientDataCache.doctor.pacienteId = null;
+      patientDataCache.doctor.timestamp = null;
+
+      setDoctorPatientMedications({});
+      setAdministrationRoutes([]);
+      doctorDataCache.patientMedications.data = {};
+      doctorDataCache.patientMedications.doctorId = null;
+      doctorDataCache.patientMedications.timestamp = null;
+      doctorDataCache.administrationRoutes.data = null;
+      doctorDataCache.administrationRoutes.timestamp = null;
+
+      setMedicationHistory({});
+      medicationHistoryCache.clear();
+
+      userService.logout();
+    } catch (error) {
+      console.error('Error en handleLogout:', error);
+    }
+  };
+
+  // Manejar cierre de sesión por inactividad (definir después de handleLogout)
+  const handleInactiveLogout = useCallback(() => {
+    if (inactivityWarningRef.current) {
+      clearTimeout(inactivityWarningRef.current);
+      inactivityWarningRef.current = null;
+    }
+    setShowInactivityWarning(false);
+    handleLogout();
+  }, []);
+
+  // Mostrar advertencia de inactividad (definir después de handleInactiveLogout)
   const showWarning = useCallback(() => {
     if (!user) return;
 
@@ -159,14 +224,13 @@ export const UserProvider = ({ children }) => {
 
     inactivityWarningRef.current = setTimeout(() => {
       setShowInactivityWarning(false);
-      // Usar handleInactiveLogout si está disponible, sino handleLogout directamente
       if (showWarningRef.current) {
         showWarningRef.current();
       }
     }, 30000);
   }, [user, showInactivityWarning]);
 
-  // Extender la sesión cuando el usuario hace clic en "Continuar"
+  // Extender la sesión cuando el usuario hace clic en "Continuar" (definir después de showWarning)
   const handleContinueSession = useCallback(() => {
     if (inactivityWarningRef.current) {
       clearTimeout(inactivityWarningRef.current);
@@ -178,6 +242,11 @@ export const UserProvider = ({ children }) => {
     authManager.isWarningActive = false;
     authManager.resetInactivityTimer(handleInactiveLogout, showWarning);
   }, [showWarning, handleInactiveLogout]);
+
+  // Asignar handleInactiveLogout al ref usando useEffect (evita problemas de inicialización)
+  useEffect(() => {
+    showWarningRef.current = handleInactiveLogout;
+  }, [handleInactiveLogout]);
 
   // Función para cargar usuarios (solo cuando sea necesario y con caché)
   const loadAllUsers = useCallback(async (forceRefresh = false) => {
@@ -452,73 +521,6 @@ export const UserProvider = ({ children }) => {
     }
   };
 
-  // Cerrar sesión
-  const handleLogout = () => {
-    try {
-      authManager.clearTimers();
-      setShowInactivityWarning(false);
-      if (inactivityWarningRef.current) {
-        clearTimeout(inactivityWarningRef.current);
-        inactivityWarningRef.current = null;
-      }
-
-      activityHandlersRef.current.forEach(handler => {
-        window.removeEventListener('mousemove', handler);
-        window.removeEventListener('keydown', handler);
-        window.removeEventListener('scroll', handler);
-        window.removeEventListener('click', handler);
-        window.removeEventListener('touchstart', handler);
-      });
-      activityHandlersRef.current.clear();
-
-      setUser(null);
-      setSelectedPatient(null);
-      setPacienteId(null);
-      setError(null);
-      pacienteIdLoadingRef.current = false;
-
-      setPatientMedications([]);
-      setPatientFamilyMembers([]);
-      setPatientDoctor(null);
-      patientDataCache.medications.data = null;
-      patientDataCache.medications.pacienteId = null;
-      patientDataCache.medications.timestamp = null;
-      patientDataCache.familyMembers.data = null;
-      patientDataCache.familyMembers.pacienteId = null;
-      patientDataCache.familyMembers.timestamp = null;
-      patientDataCache.doctor.data = null;
-      patientDataCache.doctor.pacienteId = null;
-      patientDataCache.doctor.timestamp = null;
-
-      setDoctorPatientMedications({});
-      setAdministrationRoutes([]);
-      doctorDataCache.patientMedications.data = {};
-      doctorDataCache.patientMedications.doctorId = null;
-      doctorDataCache.patientMedications.timestamp = null;
-      doctorDataCache.administrationRoutes.data = null;
-      doctorDataCache.administrationRoutes.timestamp = null;
-
-      setMedicationHistory({});
-      medicationHistoryCache.clear();
-
-      userService.logout();
-    } catch (error) {
-      console.error('Error en handleLogout:', error);
-    }
-  };
-
-  // Manejar cierre de sesión por inactividad (definir después de handleLogout)
-  const handleInactiveLogout = useCallback(() => {
-    if (inactivityWarningRef.current) {
-      clearTimeout(inactivityWarningRef.current);
-      inactivityWarningRef.current = null;
-    }
-    setShowInactivityWarning(false);
-    handleLogout();
-  }, []);
-
-  // Asignar handleInactiveLogout al ref para que showWarning lo pueda usar
-  showWarningRef.current = handleInactiveLogout;
 
   // Agregar familiar
   const handleAddFamilyMember = async (pacienteId, familyMember) => {
