@@ -10,11 +10,14 @@ function AdminLayoutContent({ children }) {
   const router = useRouter();
   const pathname = usePathname();
   
-  // No aplicar protección de autenticación en la página de login
   const isLoginPage = pathname === '/admin/login';
 
   useEffect(() => {
-    if (!isLoginPage && !loading && !admin) {
+    if (isLoginPage) {
+      return;
+    }
+    
+    if (!loading && !admin) {
       router.push("/admin/login");
     }
   }, [loading, admin, router, isLoginPage]);
@@ -45,6 +48,10 @@ function AdminLayoutContent({ children }) {
     }
   };
 
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -53,12 +60,6 @@ function AdminLayoutContent({ children }) {
     );
   }
 
-  // Si es la página de login, renderizar sin protección
-  if (isLoginPage) {
-    return <>{children}</>;
-  }
-
-  // Para otras páginas, verificar autenticación
   if (!admin) {
     return null;
   }

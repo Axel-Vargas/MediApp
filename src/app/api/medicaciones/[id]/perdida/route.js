@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
+import { obtenerFechaLocal, fechaLocalToString } from '@/lib/utils/dateHelpers';
 
 // POST - Marcar dosis como perdida
 export async function POST(request, { params }) {
@@ -101,7 +102,7 @@ export async function POST(request, { params }) {
 
       let dosisMarcadasEnFecha = 0;
       const currentTime = now.getHours() * 60 + now.getMinutes();
-      const esFechaActual = fechaProcesar === now.toISOString().split('T')[0];
+      const esFechaActual = fechaProcesar === obtenerFechaLocal();
 
       for (const horario of horarios) {
         const [hours, minutes] = horario.split(':').map(Number);
@@ -138,7 +139,7 @@ export async function POST(request, { params }) {
     };
 
     // Procesar la fecha especificada o la fecha actual
-    const fechaProcesar = fecha || now.toISOString().split('T')[0];
+    const fechaProcesar = fecha || obtenerFechaLocal();
     const dosisMarcadasHoy = await procesarFecha(fechaProcesar);
     totalDosisMarcadas += dosisMarcadasHoy;
     fechasProcesadas.push(fechaProcesar);
@@ -149,7 +150,7 @@ export async function POST(request, { params }) {
       for (let i = 1; i <= diasAnteriores; i++) {
         const fechaAnterior = new Date();
         fechaAnterior.setDate(fechaAnterior.getDate() - i);
-        const fechaAnteriorStr = fechaAnterior.toISOString().split('T')[0];
+        const fechaAnteriorStr = fechaLocalToString(fechaAnterior);
         
         // Verificar si la fecha está dentro del rango de la medicación
         if (medicacion[0].fechaInicio && medicacion[0].fechaFin) {

@@ -1,16 +1,27 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/context/userContext';
 import LayoutHeader from '@/components/LayoutHeader';
 import NavigationTabs from '@/components/NavigationTabs';
 
 export default function PatientLayout({ children }) {
-  const { user, loading, handleLogout, updateUser, allUsers } = useUser(); 
+  const { user, loading, handleLogout, updateUser, allUsers, getPacienteId } = useUser(); 
   const router = useRouter();
   const [activeTabPatient, setActiveTabPatient] = useState('medicamentos');
-  const availableDoctors = allUsers.filter(u => u.rol === 'doctor') || [];
+  
+  const availableDoctors = useMemo(() => {
+    if (!allUsers || allUsers.length === 0) return [];
+    return allUsers.filter(u => u.rol === 'doctor');
+  }, [allUsers]);
+
+  useEffect(() => {
+    if (user && user.rol === 'paciente' && user.id && getPacienteId) {
+      getPacienteId().catch(() => {
+      });
+    }
+  }, [user, getPacienteId]);
 
   useEffect(() => {
     if (!loading && (!user || user.rol !== 'paciente')) {
@@ -21,7 +32,6 @@ export default function PatientLayout({ children }) {
   const handleLogoutClick = () => {
     handleLogout();
     router.push('/');
-    window.location.reload(); 
   };
 
   const handleUpdateProfile = async (updatedData) => {

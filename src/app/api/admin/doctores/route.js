@@ -35,7 +35,6 @@ export async function GET() {
     if (isDataKeyConfigured()) {
       for (const r of rows) {
         try {
-          // Descifrar todos los campos necesarios
           if (r.nombre) r.nombre = decryptFromPacked(r.nombre) || r.nombre;
           if (r.usuario) r.usuario = decryptFromPacked(r.usuario) || r.usuario;
           if (r.telefono) r.telefono = decryptFromPacked(r.telefono) || r.telefono;
@@ -86,7 +85,6 @@ export async function PUT(request) {
       updateValues.push(activo);
     }
     
-    // Actualizar el estado de autorización y activo
     await connection.query(
       `UPDATE doctores SET ${updateFields.join(', ')} WHERE id = ?`,
       [...updateValues, doctorId]
@@ -113,7 +111,6 @@ export async function PUT(request) {
 
     if (updatedDoctor[0] && isDataKeyConfigured()) {
       try {
-        // Descifrar todos los campos necesarios
         const doc = updatedDoctor[0];
         if (doc.nombre) doc.nombre = decryptFromPacked(doc.nombre) || doc.nombre;
         if (doc.usuario) doc.usuario = decryptFromPacked(doc.usuario) || doc.usuario;

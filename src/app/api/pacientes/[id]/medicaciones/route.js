@@ -44,10 +44,8 @@ export async function GET(request, { params }) {
       [id]
     );
 
-    // Importar las funciones de descifrado
     const { decryptFromPacked, isDataKeyConfigured } = await import('@/lib/crypto');
     
-    // Verificar si hay clave de cifrado configurada
     if (!isDataKeyConfigured()) {
       console.warn('ADVERTENCIA: No hay clave de cifrado configurada (DATA_KEY_HEX)');
     }
@@ -113,19 +111,15 @@ export async function POST(request, { params }) {
 
     const data = await request.json();
 
-    // Asegurarse de que las horas sean un array
     const horasArray = Array.isArray(data.hours) ? data.hours : 
                       (data.hours ? [data.hours] : ['08:00:00']);
 
-    // Importar las funciones de cifrado
     const { encryptToPacked, isDataKeyConfigured } = await import('@/lib/crypto');
     
-    // Verificar si hay clave de cifrado configurada
     if (!isDataKeyConfigured()) {
       console.warn('ADVERTENCIA: No hay clave de cifrado configurada (DATA_KEY_HEX)');
     }
 
-    // Cifrar datos sensibles
     const nombreCifrado = isDataKeyConfigured() ? encryptToPacked(data.name) : data.name;
     const dosisCifrada = isDataKeyConfigured() ? encryptToPacked(data.dosage) : data.dosage;
     const viaAdministracionId = data.administrationRoute || null; 

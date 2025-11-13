@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 
+// Configurar revalidación: caché por 5 minutos
+export const revalidate = 300; 
+
 // GET /api/vias-administracion
 export async function GET(request) {
   let connection;
@@ -66,6 +69,13 @@ export async function POST(request) {
     );
     
     if (existing.length > 0) {
+      if (connection) {
+        try {
+          connection.release();
+        } catch (releaseError) {
+          console.error('[API] Error al liberar conexión:', releaseError);
+        }
+      }
       return NextResponse.json(
         { error: 'Ya existe una vía de administración con ese nombre' },
         { status: 409 }
@@ -126,13 +136,19 @@ export async function PUT(request) {
 
     connection = await db.getConnection();
     
-    // Verificar que la vía existe
     const [existing] = await connection.query(
       'SELECT id FROM vias_administracion WHERE id = ?',
       [data.id]
     );
     
     if (existing.length === 0) {
+      if (connection) {
+        try {
+          connection.release();
+        } catch (releaseError) {
+          console.error('[API] Error al liberar conexión:', releaseError);
+        }
+      }
       return NextResponse.json(
         { error: 'Vía de administración no encontrada' },
         { status: 404 }
@@ -204,13 +220,19 @@ export async function DELETE(request) {
 
     connection = await db.getConnection();
     
-    // Verificar que la vía existe
     const [existing] = await connection.query(
       'SELECT id, activo FROM vias_administracion WHERE id = ?',
       [id]
     );
     
     if (existing.length === 0) {
+      if (connection) {
+        try {
+          connection.release();
+        } catch (releaseError) {
+          console.error('[API] Error al liberar conexión:', releaseError);
+        }
+      }
       return NextResponse.json(
         { error: 'Vía de administración no encontrada' },
         { status: 404 }

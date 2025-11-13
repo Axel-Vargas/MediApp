@@ -13,6 +13,14 @@ export async function GET(request, { params }) {
     connection = await db.getConnection();
     const [rows] = await connection.query('SELECT * FROM pacientes WHERE usuarioId = ?', [usuarioId]);
     if (rows.length === 0) {
+      // Liberar conexión antes de retornar
+      if (connection) {
+        try {
+          connection.release();
+        } catch (releaseError) {
+          console.error('Error al liberar conexión:', releaseError);
+        }
+      }
       return NextResponse.json({ message: 'Paciente no encontrado' }, { status: 404 });
     }
     return NextResponse.json(rows[0]);

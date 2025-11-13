@@ -34,7 +34,6 @@ export async function POST(request) {
   try {
     const { usuario: username, password } = await request.json();
     
-    // Validar que se proporcionen los campos requeridos
     if (!username || !password) {
       return NextResponse.json(
         { error: "Usuario y contraseña son requeridos" },
@@ -46,11 +45,9 @@ export async function POST(request) {
     
     connection = await db.getConnection();
     
-    // Obtener todos los administradores
     const [candidates] = await connection.query("SELECT * FROM usuarios WHERE rol = 'admin'");
     console.log(`Se encontraron ${candidates.length} administradores`);
     
-    // Buscar el administrador por nombre de usuario
     const admin = candidates.find(u => {
       try {
         if (String(u.usuario).trim() === String(username).trim()) {
@@ -62,7 +59,6 @@ export async function POST(request) {
         console.log(`Usuario descifrado: ${dbUsername}`);
         console.log(`Usuario ingresado: ${username}`);
         
-        // Comparar ignorando mayúsculas/minúsculas y espacios
         return String(dbUsername).trim().toLowerCase() === String(username).trim().toLowerCase();
       } catch (error) {
         console.warn('Error al comparar usuario:', error.message);
@@ -80,7 +76,6 @@ export async function POST(request) {
       );
     }
     
-    // Verificar la contraseña con bcrypt
     if (!admin.contrasena || !(await bcrypt.compare(password, admin.contrasena))) {
       console.log('Contraseña inválida');
       return NextResponse.json(

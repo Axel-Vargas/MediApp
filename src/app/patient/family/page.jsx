@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { FiPlus, FiX } from "react-icons/fi";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/context/userContext";
@@ -8,108 +8,76 @@ import FamilyMemberCard from "@/components/FamilyMemberCard";
 import AddFamilyMemberForm from "@/components/AddFamilyMemberForm";
 import ConfirmationModal from "@/components/ConfirmationModal";
 import Toast from "@/components/Toast";
-import { userService } from '@/lib/services/userService';
 
 export default function FamilyManagement() {
   const router = useRouter();
-  const { user, setUser, handleAddFamilyMember, handleRemoveFamilyMember } = useUser();
+  const { user, setUser, handleAddFamilyMember, handleRemoveFamilyMember, pacienteId, patientFamilyMembers, patientDoctor, loadPatientFamilyMembers, loadPatientDoctor } = useUser();
   const [showAddForm, setShowAddForm] = useState(false);
   const [showPolicyModal, setShowPolicyModal] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [isAcceptingPolicy, setIsAcceptingPolicy] = useState(false); 
   const [error, setError] = useState(null);
-  const [familyMembers, setFamilyMembers] = useState([]);
   const [memberToDelete, setMemberToDelete] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
-  const [doctor, setDoctor] = useState(null);
-  const [isLoadingDoctor, setIsLoadingDoctor] = useState(true);
+  const [loadingFamilyMembers, setLoadingFamilyMembers] = useState(true);
+  const [loadingDoctor, setLoadingDoctor] = useState(true);
 
-  // Cargar información del doctor
-  const loadDoctor = useCallback(async () => {
-    if (!user?.id) return;
-    
-    try {
-      setIsLoadingDoctor(true);
-      
-      const pacienteResponse = await fetch(`/api/pacientes/usuario/${user.id}`);
-      if (!pacienteResponse.ok) {
-        if (pacienteResponse.status !== 404) {
-          throw new Error('Error al cargar la información del paciente');
-        }
-        return;
-      }
-      
-      const pacienteData = await pacienteResponse.json();
-      const pacienteId = pacienteData.id;
-      
-      const doctorResponse = await fetch(`/api/pacientes/${pacienteId}/doctor`);
-      
-      if (doctorResponse.ok) {
-        const doctorData = await doctorResponse.json();
-        setDoctor(doctorData);
-      } else if (doctorResponse.status !== 404) {
-        throw new Error('Error al cargar la información del doctor');
-      }
-    } catch (error) {
-      console.error('Error al cargar la información del doctor:', error);
-      setToast({ 
-        show: true, 
-        message: 'Error al cargar la información del doctor', 
-        type: 'error' 
-      });
-    } finally {
-      setIsLoadingDoctor(false);
-    }
-  }, [user?.id]);
-
-  // Cargar familiares
-  const loadFamilyMembers = useCallback(async () => {
-    if (!user || user.rol !== "paciente") return;
-    
-    try {
-      setIsLoading(true);
-      
-      const pacienteResponse = await fetch(`/api/pacientes/usuario/${user.id}`);
-      if (!pacienteResponse.ok) {
-        throw new Error('No se pudo obtener la información del paciente');
-      }
-      const pacienteData = await pacienteResponse.json();
-      
-      if (!pacienteData?.id) {
-        throw new Error('Datos de paciente inválidos recibidos del servidor');
-      }
-      
-      const response = await fetch(`/api/pacientes/${pacienteData.id}/familiares`);
-      if (!response.ok) throw new Error('Error al cargar los familiares');
-      
-      const data = await response.json();
-      setFamilyMembers(data);
-    } catch (error) {
-      console.error('Error al cargar familiares:', error);
-      setToast({ 
-        show: true, 
-        message: 'No se pudieron cargar los familiares', 
-        type: 'error' 
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user]);
-
-  // Efecto para verificar política y cargar datos
   useEffect(() => {
-    if (!user) return;
+    if (!user || user.rol !== "paciente") {
+      setLoadingFamilyMembers(false);
+      setLoadingDoctor(false);
+      return;
+    }
         
-    // Verificar política al cargar el componente
     if (user.politicaAceptada === false || user.politicaAceptada === 0) {
       setShowPolicyModal(true);
-    } else {
-      loadFamilyMembers();
-      loadDoctor();
+      setLoadingFamilyMembers(false);
+      setLoadingDoctor(false);
+      return;
     }
-  }, [user]);
-  
+    
+    if (!pacienteId) {
+      setLoadingFamilyMembers(true);
+      setLoadingDoctor(true);
+      return;
+    }
+    
+    const hasFamilyMembersData = patientFamilyMembers !== null && patientFamilyMembers !== undefined;
+    const hasDoctorData = patientDoctor !== null && patientDoctor !== undefined;
+    
+    if (!hasFamilyMembersData) {
+      setLoadingFamilyMembers(true);
+    }
+    if (!hasDoctorData) {
+      setLoadingDoctor(true);
+    }
+    
+    Promise.all([
+      loadPatientFamilyMembers()
+        .then(() => {
+          setLoadingFamilyMembers(false);
+        })
+        .catch(err => {
+          console.error('[Family] Error al cargar familiares:', err);
+          setLoadingFamilyMembers(false);
+          if (!hasFamilyMembersData) {
+            setToast({ 
+              show: true, 
+              message: 'No se pudieron cargar los familiares', 
+              type: 'error' 
+            });
+          }
+        }),
+      loadPatientDoctor()
+        .then(() => {
+          setLoadingDoctor(false);
+        })
+        .catch(err => {
+          console.error('[Family] Error al cargar doctor:', err);
+          setLoadingDoctor(false);
+        })
+    ]);
+  }, [user?.id, pacienteId]); 
   // Función para manejar la aceptación de la política
   const handleAcceptPolicy = async () => {
     if (isAcceptingPolicy) return;
@@ -117,18 +85,6 @@ export default function FamilyManagement() {
     setIsAcceptingPolicy(true);
     
     try {
-      const pacienteResponse = await fetch(`/api/pacientes/usuario/${user.id}`);
-      
-      if (!pacienteResponse.ok) {
-        throw new Error('No se pudo obtener la información del paciente');
-      }
-      
-      const pacienteData = await pacienteResponse.json();
-      
-      if (!pacienteData?.id) {
-        throw new Error('Datos de paciente inválidos recibidos del servidor');
-      }
-      
       // Actualizar el estado de aceptación de política
       const response = await fetch(`/api/usuarios/${user.id}`, {
         method: 'PUT',
@@ -150,8 +106,27 @@ export default function FamilyManagement() {
       setUser({ ...user, politicaAceptada: 1 });
       setShowPolicyModal(false);
       
-      loadFamilyMembers().catch(() => {});
-      loadDoctor().catch(() => {});
+      // Cargar datos después de aceptar política usando pacienteId del contexto
+      if (pacienteId) {
+        setLoadingFamilyMembers(true);
+        setLoadingDoctor(true);
+        Promise.all([
+          loadPatientFamilyMembers()
+            .then(() => {
+              setLoadingFamilyMembers(false);
+            })
+            .catch(() => {
+              setLoadingFamilyMembers(false);
+            }),
+          loadPatientDoctor()
+            .then(() => {
+              setLoadingDoctor(false);
+            })
+            .catch(() => {
+              setLoadingDoctor(false);
+            })
+        ]);
+      }
       
     } catch (error) {
       console.error('Error al aceptar la política:', error);
@@ -255,36 +230,39 @@ export default function FamilyManagement() {
 
       <div className="mb-8">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Doctor Encargado</h2>
-        {isLoadingDoctor ? (
-          <div className="flex items-center justify-center p-8 bg-white rounded-xl shadow-sm border border-gray-100">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        {loadingDoctor ? (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+            <div className="flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+              <span className="ml-3 text-gray-600">Cargando información del doctor...</span>
+            </div>
           </div>
-        ) : doctor ? (
+        ) : patientDoctor ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-6">
               <div className="flex items-center space-x-4">
                 <div className="flex-shrink-0">
                   <div className="h-16 w-16 rounded-full bg-blue-50 flex items-center justify-center">
                     <span className="text-blue-600 text-2xl font-medium">
-                      {doctor.nombre?.charAt(0) || 'D'}
+                      {patientDoctor.nombre?.charAt(0) || 'D'}
                     </span>
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="text-lg font-semibold text-gray-900">
-                    Dr. {doctor.nombre}
+                    Dr. {patientDoctor.nombre}
                   </h3>
-                  <p className="text-sm text-blue-600 font-medium">{doctor.especialidad}</p>
+                  <p className="text-sm text-blue-600 font-medium">{patientDoctor.especialidad}</p>
                   <div className="mt-2">
-                    {doctor.telefono && (
+                    {patientDoctor.telefono && (
                       <a 
-                        href={`tel:${doctor.telefono}`}
+                        href={`tel:${patientDoctor.telefono}`}
                         className="inline-flex items-center text-sm text-gray-700 hover:text-blue-600 transition-colors"
                       >
                         <svg className="h-4 w-4 mr-2 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                         </svg>
-                        {doctor.telefono}
+                        {patientDoctor.telefono}
                       </a>
                     )}
                   </div>
@@ -309,7 +287,7 @@ export default function FamilyManagement() {
         <div>
           <h2 className="text-xl font-semibold text-gray-900">Miembros de la Familia</h2>
           <p className="text-sm text-gray-500">
-            {familyMembers.length} miembro{familyMembers.length !== 1 ? 's' : ''} en tu familia
+            {patientFamilyMembers?.length || 0} miembro{(patientFamilyMembers?.length || 0) !== 1 ? 's' : ''} en tu familia
           </p>
         </div>
         <button
@@ -335,25 +313,23 @@ export default function FamilyManagement() {
           <AddFamilyMemberForm
             onAdd={async (member) => {
               try {
-                const pacienteResponse = await fetch(`/api/pacientes/usuario/${user.id}`);
-                if (!pacienteResponse.ok) {
+                if (!pacienteId) {
                   throw new Error('No se pudo obtener la información del paciente');
                 }
-                const pacienteData = await pacienteResponse.json();
-                
-                if (!pacienteData?.id) {
-                  throw new Error('Datos de paciente inválidos recibidos del servidor');
-                }
                            
-                const response = await handleAddFamilyMember(pacienteData.id, member);
+                setLoadingFamilyMembers(true);
+                const response = await handleAddFamilyMember(pacienteId, member);
                 
                 if (response) {
-                  await loadFamilyMembers();
-                  
                   setToast({
                     show: true,
                     message: 'Familiar agregado exitosamente',
                     type: 'success'
+                  });
+                  await loadPatientFamilyMembers(true).then(() => {
+                    setLoadingFamilyMembers(false);
+                  }).catch(() => {
+                    setLoadingFamilyMembers(false);
                   });
                 }
                 setShowAddForm(false);
@@ -371,18 +347,20 @@ export default function FamilyManagement() {
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Cargando familiares...</p>
+      {loadingFamilyMembers ? (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12">
+          <div className="flex flex-col items-center justify-center">
+            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+            <p className="text-gray-600">Cargando miembros de la familia...</p>
+          </div>
         </div>
-      ) : error ? (
+      ) : error && (!patientFamilyMembers || patientFamilyMembers.length === 0) ? (
         <div className="text-center py-12 text-red-600">
           <p>{error}</p>
         </div>
-      ) : familyMembers.length > 0 ? (
+      ) : patientFamilyMembers && patientFamilyMembers.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {familyMembers.map((member) => (
+          {patientFamilyMembers.map((member) => (
             <FamilyMemberCard
               key={member.id}
               member={member}
@@ -421,22 +399,11 @@ export default function FamilyManagement() {
         onClose={() => setShowDeleteModal(false)}
         className="bg-black/50"
         onConfirm={async () => {
-          if (!memberToDelete) return;
+          if (!memberToDelete || !pacienteId) return;
           
           try {
-            // 1. Primero obtener el ID del paciente usando el ID de usuario
-            const pacienteResponse = await fetch(`/api/pacientes/usuario/${user.id}`);
-            if (!pacienteResponse.ok) {
-              throw new Error('No se pudo obtener la información del paciente');
-            }
-            const pacienteData = await pacienteResponse.json();
-            
-            if (!pacienteData?.id) {
-              throw new Error('Datos de paciente inválidos recibidos del servidor');
-            }
-            
-            // 2. Eliminar de la base de datos usando el ID del paciente
-            const response = await fetch(`/api/pacientes/${pacienteData.id}/familiares?familiarId=${memberToDelete}`, {
+            // Eliminar de la base de datos usando el ID del paciente
+            const response = await fetch(`/api/pacientes/${pacienteId}/familiares?familiarId=${memberToDelete}`, {
               method: 'DELETE',
               headers: {
                 'Content-Type': 'application/json',
@@ -449,16 +416,7 @@ export default function FamilyManagement() {
               throw new Error(data.error || 'Error al eliminar el familiar');
             }
             
-            // 3. Actualizamos el contexto del usuario primero
-            handleRemoveFamilyMember(memberToDelete);
-            
-            // 4. Actualizamos el estado local
-            setFamilyMembers(prevMembers => 
-              prevMembers.filter(member => member && member.id !== memberToDelete)
-            );
-            
-            // 5. Recargamos la lista completa para asegurar consistencia
-            await loadFamilyMembers();
+            await handleRemoveFamilyMember(pacienteId, memberToDelete);
             
             setShowDeleteModal(false);
             
@@ -466,6 +424,9 @@ export default function FamilyManagement() {
               show: true, 
               message: 'Familiar eliminado correctamente', 
               type: 'success' 
+            });
+            
+            await loadPatientFamilyMembers(true).catch(() => {
             });
           } catch (error) {
             console.error('Error eliminando familiar:', error);

@@ -48,13 +48,10 @@ const authManager = {
       return;
     }
     
-    // Limpiar timers existentes
     this.clearTimers();
     
-    // Establecer la última actividad al tiempo actual
     this.lastActivity = Date.now();
     
-    // Configurar timer de advertencia
     this.warningTimer = setTimeout(() => {
       this.isWarningActive = true;
       if (onWarning) onWarning();
@@ -126,7 +123,6 @@ const httpClient = {
       mode: 'cors'
     };
 
-    // Agregar el token al header Authorization si existe
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
@@ -149,11 +145,9 @@ const httpClient = {
         error.data = errorData;
         throw error;
       }
-      // Si la respuesta está vacía (como en un DELETE exitoso)
       if (response.status === 204) {
         return null;
       }
-      // Intentar parsear la respuesta como JSON
       try {
         return await response.json();
       } catch (e) {
@@ -203,6 +197,7 @@ export const userService = {
         
         const userInfo = await userService.getMe();
         
+        // Devolver el usuario y la ruta de redirección para que el componente maneje la navegación
         let redirectPath = '/dashboard';
         if (userInfo?.rol === 'doctor' || userInfo?.rol === 'caregiver') {
           redirectPath = '/caregiver/assign';
@@ -210,9 +205,12 @@ export const userService = {
           redirectPath = '/patient/medications';
         }
         
-        if (typeof window !== 'undefined') {
-          window.location.href = redirectPath;
-        }
+        // Agregar la información del usuario y la ruta de redirección a la respuesta
+        return {
+          ...data,
+          user: userInfo,
+          redirectPath
+        };
       }
 
       return data;
@@ -230,21 +228,15 @@ export const userService = {
     authManager.clearTimers();
     authManager.clear();
     
-    if (typeof window !== 'undefined') {
-      window.location.href = '/';
-    }
-    
     return Promise.resolve();
   },
 
-  // Operaciones CRUD
   getMe: async () => {
     try {
       const response = await httpClient.request('/api/usuarios/me');
       return response;
     } catch (error) {
       console.error('Error en getMe:', error);
-      // Solo borra el token si el error es 401 o 403
       if (error.status === 401 || error.status === 403) {
         authManager.clear();
       }

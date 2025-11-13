@@ -3,7 +3,6 @@ import db from '@/lib/db';
 
 // Función para generar notificaciones futuras para un familiar
 async function generarNotificacionesFuturas(connection, familiarId, pacienteId) {
-  // Obtener todas las medicaciones activas del paciente
   const [medicaciones] = await connection.query(
     `SELECT m.*, u.nombre as nombrePaciente 
      FROM medicaciones m
@@ -19,7 +18,6 @@ async function generarNotificacionesFuturas(connection, familiarId, pacienteId) 
   fechaLimite.setDate(hoy.getDate() + 7);
 
   for (const medicacion of medicaciones) {
-    // Parsear horarios y días de la medicación
     let horarios = [];
     try {
       horarios = JSON.parse(medicacion.horario);
@@ -31,7 +29,6 @@ async function generarNotificacionesFuturas(connection, familiarId, pacienteId) 
     if (medicacion.dias) {
       dias = medicacion.dias.split(',').map(dia => dia.trim().toLowerCase());
     } else {
-      // Si no hay días específicos, asumir todos los días
       dias = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
     }
 
@@ -52,12 +49,10 @@ async function generarNotificacionesFuturas(connection, familiarId, pacienteId) 
           if (fechaNotificacion > hoy) {
             const mensaje = `Recordatorio: ${medicacion.nombrePaciente} debe tomar ${medicacion.nombreMedicamento} - ${medicacion.dosis}`;
             
-            // Cifrar el mensaje si hay clave configurada
             const { encryptToPacked, isDataKeyConfigured } = await import('@/lib/crypto');
             const mensajeCifrado = isDataKeyConfigured() ? 
               await encryptToPacked(mensaje) : mensaje;
             
-            // Verificar si la notificación ya existe
             const [existe] = await connection.query(
               `SELECT id FROM notificaciones 
                WHERE familiarId = ? AND medicacionId = ? AND fechaProgramada = ?`,
@@ -101,7 +96,6 @@ export async function GET(request) {
 
     // Si es un familiar, generar notificaciones futuras
     if (rol === 'familiar') {
-      // Obtener todos los pacientes asociados a este familiar
       const [pacientes] = await connection.query(
         `SELECT pacienteId FROM pacientes_familiares WHERE familiarId = ?`,
         [usuarioId]

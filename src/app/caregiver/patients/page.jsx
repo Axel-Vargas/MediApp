@@ -6,11 +6,9 @@ import MedicationHistoryChart from "@/components/MedicationHistoryChart";
 import ConfirmationModal from "@/components/ConfirmationModal";
 
 export default function PatientList() {
-  const { user } = useUser();
+  const { user, doctorPatientMedications, administrationRoutes, loadDoctorPatientMedications, loadAdministrationRoutes, invalidateMedicationHistory } = useUser();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPatient, setSelectedPatient] = useState(null);
-  const [patientMedications, setPatientMedications] = useState({});
-  const [loadingMedications, setLoadingMedications] = useState(false);
   const [editingMedication, setEditingMedication] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -27,9 +25,7 @@ export default function PatientList() {
     days: [],
     hours: []
   });
-  const [viasAdministracion, setViasAdministracion] = useState([]);
 
-  // Verificar que el usuario existe y es un doctor
   if (!user || user.rol !== 'doctor') {
     return (
       <div className="flex items-center justify-center h-64">
@@ -44,58 +40,22 @@ export default function PatientList() {
     (patient.telefono || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Función para cargar las medicaciones de un paciente
-  const loadPatientMedications = async (patientId) => {
-    if (patientMedications[patientId]) {
-      return;
-    }
-
-    setLoadingMedications(true);
-    try {
-      const response = await fetch(`/api/pacientes/${patientId}/medicaciones`);
-      if (response.ok) {
-        const medications = await response.json();
-        setPatientMedications(prev => ({
-          ...prev,
-          [patientId]: medications
-        }));
-      } else {
-        console.error('Error al cargar medicaciones:', response.statusText);
-        setPatientMedications(prev => ({
-          ...prev,
-          [patientId]: []
-        }));
-      }
-    } catch (error) {
-      console.error('Error al cargar medicaciones:', error);
-      setPatientMedications(prev => ({
-        ...prev,
-        [patientId]: []
-      }));
-    } finally {
-      setLoadingMedications(false);
-    }
-  };
-
-  // Cargar vías de administración al montar el componente
+  // Cargar datos desde el contexto (con caché)
   useEffect(() => {
-    const fetchViasAdministracion = async () => {
-      try {
-        const response = await fetch('/api/vias-administracion?activas=true');
-        const data = await response.json();
-        setViasAdministracion(Array.isArray(data) ? data : []);
-      } catch (error) {
-        console.error('Error al cargar vías de administración:', error);
-        setViasAdministracion([]);
-      }
-    };
-
-    fetchViasAdministracion();
-  }, []);
+    if (user && user.rol === 'doctor') {
+      Promise.all([
+        loadDoctorPatientMedications().catch(err => {
+          console.error('[PatientList] Error al cargar medicaciones:', err);
+        }),
+        loadAdministrationRoutes().catch(err => {
+          console.error('[PatientList] Error al cargar vías de administración:', err);
+        })
+      ]);
+    }
+  }, [user?.id, user?.patients?.length]); 
 
   const handleSelectPatient = (patient) => {
     setSelectedPatient(patient);
-    loadPatientMedications(patient.id);
   };
 
   // Función para cambiar el estado activo/inactivo de una medicación
@@ -110,15 +70,10 @@ export default function PatientList() {
       });
 
       if (response.ok) {
-        setPatientMedications(prev => {
-          const updated = { ...prev };
-          Object.keys(updated).forEach(patientId => {
-            updated[patientId] = updated[patientId].map(med =>
-              med.id === medicationId ? { ...med, active: !currentStatus } : med
-            );
-          });
-          return updated;
-        });
+        await loadDoctorPatientMedications(true);
+        if (selectedPatient?.id) {
+          invalidateMedicationHistory(selectedPatient.id);
+        }
       } else {
         console.error('Error al cambiar estado de la medicación');
       }
@@ -143,13 +98,10 @@ export default function PatientList() {
       });
 
       if (response.ok) {
-        setPatientMedications(prev => {
-          const updated = { ...prev };
-          Object.keys(updated).forEach(patientId => {
-            updated[patientId] = updated[patientId].filter(med => med.id !== medicationToDelete);
-          });
-          return updated;
-        });
+        await loadDoctorPatientMedications(true);
+        if (selectedPatient?.id) {
+          invalidateMedicationHistory(selectedPatient.id);
+        }
         setShowDeleteModal(false);
         setMedicationToDelete(null);
       } else {
@@ -246,29 +198,10 @@ export default function PatientList() {
       });
 
       if (response.ok) {
-        const viaSeleccionada = viasAdministracion.find(v => v.id === parseInt(editForm.administrationRoute));
-        const administrationRouteName = viaSeleccionada ? viaSeleccionada.nombre : editingMedication.administrationRouteName;
-
-        // Actualizar el estado local con todos los campos actualizados
-        setPatientMedications(prev => {
-          const updated = { ...prev };
-          Object.keys(updated).forEach(patientId => {
-            updated[patientId] = updated[patientId].map(med =>
-              med.id === editingMedication.id ? {
-                ...med,
-                ...editForm,
-                dosage: dataToSend.dosage,
-                durationDays: diffDays,
-                fechaInicio: editForm.startDate,
-                fechaFin: editForm.endDate,
-                administrationRouteName: administrationRouteName,
-                active: dataToSend.active
-              } : med
-            );
-          });
-          return updated;
-        });
-
+        await loadDoctorPatientMedications(true);
+        if (selectedPatient?.id) {
+          invalidateMedicationHistory(selectedPatient.id);
+        }
         setShowEditModal(false);
         setEditingMedication(null);
       } else {
@@ -279,22 +212,13 @@ export default function PatientList() {
     }
   };
 
-  // Cargar medicaciones de todos los pacientes cuando se cargan los pacientes
-  useEffect(() => {
-    if (user.patients && user.patients.length > 0) {
-      user.patients.forEach(patient => {
-        loadPatientMedications(patient.id);
-      });
-    }
-  }, [user.patients]);
-
   // Función para generar reporte detallado del paciente
   const generarReporteDetallado = async (paciente) => {
     try {
       const historialResponse = await fetch(`/api/pacientes/${paciente.id}/medicaciones/historial`);
       const historial = historialResponse.ok ? await historialResponse.json() : [];
 
-      const medicaciones = patientMedications[paciente.id] || [];
+      const medicaciones = doctorPatientMedications[paciente.id] || [];
 
       const totalMedicaciones = medicaciones.length;
       const medicacionesActivas = medicaciones.filter(m => m.active).length;
@@ -834,12 +758,10 @@ export default function PatientList() {
       // Configurar el título del documento del iframe
       iframe.contentWindow.document.title = nombrePDF;
 
-      // Esperar a que se cargue el contenido y abrir diálogo de impresión
       setTimeout(() => {
         iframe.contentWindow.focus();
         iframe.contentWindow.print();
 
-        // Eliminar el iframe después de cerrar el diálogo de impresión
         setTimeout(() => {
           if (document.body.contains(iframe)) {
             document.body.removeChild(iframe);
@@ -899,19 +821,19 @@ export default function PatientList() {
                 <p className="text-sm text-gray-600 mb-3">{patient.telefono || 'Sin teléfono'}</p>
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium text-gray-700">
-                    {patientMedications[patient.id]?.length || 0} medicaciones
+                    {doctorPatientMedications[patient.id]?.length || 0} medicaciones
                   </span>
                   <div className="flex gap-2">
                     <div className="flex items-center gap-1">
                       <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                       <span className="text-xs text-gray-600">
-                        {patientMedications[patient.id]?.filter(med => med.active)?.length || 0} activas
+                        {doctorPatientMedications[patient.id]?.filter(med => med.active)?.length || 0} activas
                       </span>
                     </div>
                     <div className="flex items-center gap-1">
                       <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
                       <span className="text-xs text-gray-600">
-                        {patientMedications[patient.id]?.filter(med => !med.active)?.length || 0} inactivas
+                        {doctorPatientMedications[patient.id]?.filter(med => !med.active)?.length || 0} inactivas
                       </span>
                     </div>
                   </div>
@@ -954,17 +876,10 @@ export default function PatientList() {
             <div className="space-y-4">
               {/* Gráfico de Historial de Medicaciones */}
               <div className="border border-gray-200 rounded-lg">
-                {loadingMedications ? (
-                  <div className="p-6 text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-                    <p className="mt-2 text-sm text-gray-600">Cargando medicaciones...</p>
-                  </div>
-                ) : (
-                  <MedicationHistoryChart
-                    medications={patientMedications[selectedPatient.id] || []}
-                    pacienteId={selectedPatient.id}
-                  />
-                )}
+                <MedicationHistoryChart
+                  medications={doctorPatientMedications[selectedPatient.id] || []}
+                  pacienteId={selectedPatient.id}
+                />
               </div>
 
               {/* Lista de Medicaciones */}
@@ -973,11 +888,11 @@ export default function PatientList() {
                   <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
                   </svg>
-                  Medicaciones Asignadas ({patientMedications[selectedPatient.id]?.length || 0})
+                  Medicaciones Asignadas ({doctorPatientMedications[selectedPatient.id]?.length || 0})
                 </h4>
-                {patientMedications[selectedPatient.id] && patientMedications[selectedPatient.id].length > 0 ? (
+                {doctorPatientMedications[selectedPatient.id] && doctorPatientMedications[selectedPatient.id].length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {patientMedications[selectedPatient.id].map((med) => (
+                    {doctorPatientMedications[selectedPatient.id].map((med) => (
                       <div key={med.id} className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
                         {/* Header con estado */}
                         <div className={`px-4 py-3 border-b ${med.active ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200' : 'bg-gradient-to-r from-gray-50 to-slate-50 border-gray-200'
@@ -1221,7 +1136,7 @@ export default function PatientList() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                 >
                   <option value="">Seleccionar vía</option>
-                  {viasAdministracion.map((via) => (
+                  {administrationRoutes.map((via) => (
                     <option key={via.id} value={via.id}>
                       {via.nombre}
                     </option>

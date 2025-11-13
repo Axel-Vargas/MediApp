@@ -23,6 +23,13 @@ export async function POST(request) {
     );
     
     if (existingRelation.length > 0) {
+      if (connection) {
+        try {
+          connection.release();
+        } catch (releaseError) {
+          console.error('Error al liberar conexión:', releaseError);
+        }
+      }
       return NextResponse.json(
         { message: 'El paciente ya está asignado a este doctor' },
         { status: 409 }

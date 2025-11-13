@@ -13,6 +13,13 @@ export async function PUT(request, { params }) {
     
     const [user] = await connection.query('SELECT * FROM usuarios WHERE id = ?', [id]);
     if (user.length === 0) {
+      if (connection) {
+        try {
+          connection.release();
+        } catch (releaseError) {
+          console.error('Error al liberar conexión:', releaseError);
+        }
+      }
       return NextResponse.json(
         { error: 'Usuario no encontrado' },
         { status: 404 }
@@ -23,19 +30,16 @@ export async function PUT(request, { params }) {
     const allowedFields = ['nombre', 'telefono', 'correo', 'usuario', 'contrasena', 'politicaAceptada', 'politicaFecha'];
     const updateData = {};
     
-    // Solo incluir campos permitidos y que no estén vacíos
     Object.keys(data).forEach(key => {
       if (allowedFields.includes(key) && data[key] !== undefined && data[key] !== '') {
         updateData[key] = data[key];
       }
     });
 
-    // Permitir que llegue como 'email' y mapearlo a 'correo'
     if (data.email && !updateData.correo) {
       updateData.correo = data.email;
     }
     
-    // Si no hay campos válidos para actualizar
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
         { error: 'No se proporcionaron campos válidos para actualizar' },
@@ -56,10 +60,8 @@ export async function PUT(request, { params }) {
       if (updateData.usuario !== undefined) updateData.usuario = encryptToPacked(updateData.usuario);
     }
 
-    // Actualizar en la base de datos
     await connection.query('UPDATE usuarios SET ? WHERE id = ?', [updateData, id]);
 
-    // Si se proporciona especialidad y el usuario es doctor, actualizar la tabla doctores
     if (data.especialidad !== undefined) {
       const [doctor] = await connection.query('SELECT id FROM doctores WHERE usuarioId = ?', [id]);
       if (doctor.length > 0) {

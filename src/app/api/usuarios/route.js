@@ -3,11 +3,13 @@ import db from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { encryptAesGcm, decryptTriple, isDataKeyConfigured, encryptToPacked, decryptFromPacked } from '@/lib/crypto';
 
+// Configurar revalidación: caché por 2 minutos para usuarios (puede cambiar frecuentemente)
+export const revalidate = 120; 
+
 export async function GET() {
   let connection;
   try {
     connection = await db.getConnection();    
-    // Obtener todos los usuarios con información adicional de doctores
     console.log('Obteniendo usuarios con rol doctor o paciente...');
     const [rows] = await connection.query(`
       SELECT 
@@ -65,13 +67,19 @@ export async function POST(request) {
     const correo = (data.correo || data.email || null);
     
     if (!nombre || !usuario || !contrasena) {
+      if (connection) {
+        try {
+          connection.release();
+        } catch (releaseError) {
+          console.error('Error al liberar conexión:', releaseError);
+        }
+      }
       return NextResponse.json(
         { message: 'Nombre, usuario y contraseña son requeridos' },
         { status: 400 }
       );
     }
     
-    // Verificar si el usuario ya existe
     if (isDataKeyConfigured()) {
       const [allUsers] = await connection.query('SELECT id, usuario FROM usuarios');
       for (const u of allUsers) {
@@ -163,7 +171,6 @@ export async function POST(request) {
           ]
         );
       } else {
-        // Sin clave de datos: guardar en claro
         [result] = await connection.query(
           `INSERT INTO usuarios (
             nombre, telefono, correo, rol, usuario, contrasena, fechaRegistro,

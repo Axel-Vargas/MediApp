@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Login from "@/app/Auth/Login";
 import Register from "@/app/Auth/Register";
@@ -11,7 +11,6 @@ const NavigationTabs = ({ isPatient, caregivers, onLogin, onRegister }) => {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Definir las pestañas según el rol
   const patientTabs = [
     { id: "medications", label: "Medicamentos", route: "/patient/medications" },
     { id: "family", label: "Familia", route: "/patient/family" },
@@ -25,6 +24,14 @@ const NavigationTabs = ({ isPatient, caregivers, onLogin, onRegister }) => {
 
   // Seleccionar las pestañas según el rol
   const tabs = isPatient ? patientTabs : caregiverTabs;
+
+  useEffect(() => {
+    if (tabs && tabs.length > 0) {
+      tabs.forEach(tab => {
+        router.prefetch(tab.route);
+      });
+    }
+  }, [tabs, router]);
 
   return (
     <div>
@@ -62,8 +69,14 @@ const NavigationTabs = ({ isPatient, caregivers, onLogin, onRegister }) => {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => router.push(tab.route)}
-              className={`py-2 px-5 font-medium ${
+              onClick={() => {
+                router.prefetch(tab.route);
+                router.push(tab.route);
+              }}
+              onMouseEnter={() => {
+                router.prefetch(tab.route);
+              }}
+              className={`py-2 px-5 font-medium transition-colors ${
                 pathname === tab.route
                   ? "border-b-2 border-blue-500 text-white bg-blue-300 rounded-t-lg"
                   : "text-gray-500 hover:text-gray-700"

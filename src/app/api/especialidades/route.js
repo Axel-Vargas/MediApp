@@ -69,7 +69,6 @@ export async function POST(request) {
 
     connection = await db.getConnection();
     
-    // Verificar si ya existe una especialidad con ese nombre
     const [existing] = await connection.query(
       'SELECT id FROM especialidades WHERE nombre = ?',
       [data.nombre.trim()]

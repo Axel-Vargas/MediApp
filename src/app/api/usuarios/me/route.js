@@ -6,7 +6,6 @@ export async function GET(request) {
   let connection;
   try {
     connection = await db.getConnection();    
-    // Obtener el token de la cabecera Authorization o de la cookie
     let authToken = null;
     const authHeader = request.headers.get('authorization');
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -41,6 +40,13 @@ export async function GET(request) {
     );
     
     if (rows.length === 0) {
+      if (connection) {
+        try {
+          connection.release();
+        } catch (releaseError) {
+          console.error('Error al liberar conexión:', releaseError);
+        }
+      }
       return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 });
     }
     
@@ -49,7 +55,6 @@ export async function GET(request) {
     if (!usuario.rol) {
       usuario.rol = 'paciente';
     }
-    // Descifrar datos si corresponde
     if (isDataKeyConfigured()) {
       try {
         usuario.nombre = decryptTriple(usuario, 'nombre') || decryptFromPacked(usuario.nombre) || usuario.nombre;
@@ -63,7 +68,6 @@ export async function GET(request) {
     // Asegurarnos de que politicaAceptada sea un booleano
     usuario.politicaAceptada = Boolean(usuario.politicaAceptada);
 
-    // Si es un doctor, cargar su especialidad
     if (usuario.rol === 'doctor') {
       try {
         const [doctorData] = await connection.query(`
@@ -82,7 +86,6 @@ export async function GET(request) {
       }
     }
 
-    // Si es un paciente, cargar sus doctores asignados
     if (usuario.rol === 'paciente') {
       try {
         const [doctores] = await connection.query(`

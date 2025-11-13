@@ -8,7 +8,7 @@ import LayoutHeader from "@/components/LayoutHeader";
 import "@/globals.css";
 
 export default function CaregiverLayout({ children }) {
-  const { user, loading, activeTabCaregiver, setActiveTabCaregiver, handleLogout, updateUser } = useUser();
+  const { user, loading, activeTabCaregiver, setActiveTabCaregiver, handleLogout, updateUser, loadDoctorPatientMedications, loadAdministrationRoutes } = useUser();
   
   const handleUpdateProfile = async (updatedData) => {
     try {
@@ -19,6 +19,17 @@ export default function CaregiverLayout({ children }) {
     }
   };
   const router = useRouter();
+
+  useEffect(() => {
+    if (user && user.rol === 'doctor' && user.id && user.patients && user.patients.length > 0) {
+      Promise.all([
+        loadDoctorPatientMedications().catch(() => {
+        }),
+        loadAdministrationRoutes().catch(() => {
+        })
+      ]);
+    }
+  }, [user?.id, user?.patients?.length]); 
 
   useEffect(() => {
     if (!loading && (!user || user.rol !== "doctor")) {

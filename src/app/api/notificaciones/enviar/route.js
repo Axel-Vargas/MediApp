@@ -97,7 +97,6 @@ export async function POST(request) {
       try {
         console.log('Procesando notificación:', notificacion.id);
         
-        // Verificar si hay una suscripción válida
         const tieneSuscripcion = notificacion.endpoint && notificacion.subscriptionKeys;
         console.log('Tiene suscripción?', {
           endpoint: !!notificacion.endpoint,

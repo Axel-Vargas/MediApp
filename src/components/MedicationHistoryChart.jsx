@@ -1,40 +1,46 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo, useRef } from 'react';
+import { useUser } from '@/context/userContext';
 
-const MedicationHistoryChart = ({ medications, pacienteId }) => {
-  const [historial, setHistorial] = useState([]);
-  const [loading, setLoading] = useState(true);
+const MedicationHistoryChart = memo(({ medications, pacienteId }) => {
+  const { loadMedicationHistory, medicationHistory, invalidateMedicationHistory } = useUser();
+  const [loading, setLoading] = useState(false);
   const [periodo, setPeriodo] = useState(7); 
-  const [filtroEstado, setFiltroEstado] = useState('todos'); 
+  const [filtroEstado, setFiltroEstado] = useState('todos');
+  const loadingRef = useRef(false);
 
-  // Cargar historial real desde la API
+  const cacheKey = pacienteId ? `${pacienteId}-${periodo}` : null;
+  const historial = cacheKey ? (medicationHistory[cacheKey] || []) : [];
+
   useEffect(() => {
+    if (!pacienteId) {
+      return;
+    }
+
     const loadHistorial = async () => {
-      if (!pacienteId) {
-        setHistorial([]);
+      if (loadingRef.current) {
+        return;
+      }
+
+      if (medicationHistory[cacheKey] && medicationHistory[cacheKey].length > 0) {
         setLoading(false);
         return;
       }
 
       try {
+        loadingRef.current = true;
         setLoading(true);
-        const response = await fetch(`/api/pacientes/${pacienteId}/medicaciones/historial?days=${periodo}`);
-        if (response.ok) {
-          const data = await response.json();
-          setHistorial(data);
-        } else {
-          console.error('Error al cargar historial:', response.statusText);
-          setHistorial([]);
-        }
-      } catch (error) {
-        console.error('Error al cargar historial:', error);
-        setHistorial([]);
+        
+        await loadMedicationHistory(pacienteId, periodo, false);
+      } catch (err) {
+        console.error('[MedicationHistoryChart] Error al cargar historial:', err);
       } finally {
         setLoading(false);
+        loadingRef.current = false;
       }
     };
 
     loadHistorial();
-  }, [pacienteId, periodo, medications]);
+  }, [pacienteId, periodo, loadMedicationHistory, cacheKey]); 
 
   // Función para formatear la fecha completa
   const formatFullDate = (dateString) => {
@@ -60,7 +66,6 @@ const MedicationHistoryChart = ({ medications, pacienteId }) => {
             const [horas, minutos, segundos] = horaPart.split(':').map(Number);
             date = new Date(Date.UTC(year, month - 1, day, horas || 0, minutos || 0, segundos || 0));
           } else {
-            // Solo fecha
             date = new Date(Date.UTC(year, month - 1, day));
           }
         } else {
@@ -77,7 +82,6 @@ const MedicationHistoryChart = ({ medications, pacienteId }) => {
         return 'Fecha inválida';
       }
       
-      // Usar toLocaleDateString con opciones específicas para evitar problemas de zona horaria
       return date.toLocaleDateString('es-ES', {
         weekday: 'long',
         year: 'numeric',
@@ -200,23 +204,23 @@ const MedicationHistoryChart = ({ medications, pacienteId }) => {
     const med = filteredMedications[medId];
   });
 
-  if (loading) {
-    return (
-      <div className="bg-white p-6 rounded-xl shadow-md">
-        <div className="flex items-center justify-center h-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-3 text-gray-600">Cargando historial...</span>
-        </div>
-      </div>
-    );
-  }
+  // No mostrar spinner completo, en su lugar mostrar skeleton loader o datos en caché
+  const showLoadingIndicator = loading && historial.length === 0;
 
   return (
     <div className="bg-white p-6 rounded-xl shadow-md">
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 space-y-4 lg:space-y-0">
-        <h2 className="text-xl font-bold text-gray-800">
-          Historial de Medicamentos
-        </h2>
+        <div className="flex items-center space-x-3">
+          <h2 className="text-xl font-bold text-gray-800">
+            Historial de Medicamentos
+          </h2>
+          {loading && historial.length > 0 && (
+            <div className="flex items-center space-x-2 text-sm text-gray-500">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+              <span>Actualizando...</span>
+            </div>
+          )}
+        </div>
         
         {/* Controles de filtrado */}
         <div className="flex flex-col sm:flex-row gap-4">
@@ -226,7 +230,8 @@ const MedicationHistoryChart = ({ medications, pacienteId }) => {
             <select 
               value={periodo} 
               onChange={(e) => setPeriodo(parseInt(e.target.value))}
-              className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={loading && historial.length === 0}
+              className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <option value={7}>Últimos 7 días</option>
               <option value={15}>Últimos 15 días</option>
@@ -240,7 +245,8 @@ const MedicationHistoryChart = ({ medications, pacienteId }) => {
             <select 
               value={filtroEstado} 
               onChange={(e) => setFiltroEstado(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={loading && historial.length === 0}
+              className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <option value="todos">Todos</option>
               <option value="tomadas">Solo tomadas</option>
@@ -262,7 +268,14 @@ const MedicationHistoryChart = ({ medications, pacienteId }) => {
         </div>
       </div>
 
-      {sortedMedications.length === 0 ? (
+      {showLoadingIndicator ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="flex flex-col items-center space-y-3">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="text-gray-600 text-sm">Cargando historial...</span>
+          </div>
+        </div>
+      ) : sortedMedications.length === 0 ? (
         <div className="text-center py-8">
           <div className="text-gray-400 text-6xl mb-4">
             📅
@@ -392,13 +405,11 @@ const MedicationHistoryChart = ({ medications, pacienteId }) => {
             {(() => {
               const datosMostrados = Object.values(filteredMedications);
               
-              // Log detallado de cada medicamento
               datosMostrados.forEach((medicacion, index) => {
                 const tomadas = medicacion.registros.filter(r => r.tomada).length;
                 const omitidas = medicacion.registros.filter(r => r.perdida).length;
               });
               
-              // Contar dosis individuales
               const todasLasDosis = datosMostrados.flatMap(m => m.registros);
               const totalTaken = todasLasDosis.filter(r => r.tomada).length;
               const totalMissed = todasLasDosis.filter(r => r.perdida).length;
@@ -435,6 +446,14 @@ const MedicationHistoryChart = ({ medications, pacienteId }) => {
       )}
     </div>
   );
-};
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.pacienteId === nextProps.pacienteId &&
+    prevProps.medications?.length === nextProps.medications?.length &&
+    JSON.stringify(prevProps.medications?.map(m => m.id)) === JSON.stringify(nextProps.medications?.map(m => m.id))
+  );
+});
+
+MedicationHistoryChart.displayName = 'MedicationHistoryChart';
 
 export default MedicationHistoryChart;

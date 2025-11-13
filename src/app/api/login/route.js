@@ -22,18 +22,15 @@ export async function POST(req) {
       return NextResponse.json({ message: 'Credenciales inválidas' }, { status: 401 });
     }
     
-    // Obtenemos el usuario y verificamos password con bcrypt
     const usuario = rows[0];
     if (!usuario.contrasena || !(await bcrypt.compare(password, usuario.contrasena))) {
       return NextResponse.json({ message: 'Credenciales inválidas' }, { status: 401 });
     }
     
-    // Nos aseguramos de que tenga un rol (por defecto 'paciente')
     if (!usuario.rol) {
       usuario.rol = 'paciente';
     }
     
-    // Si es un doctor, verificar si está autorizado y activo
     if (usuario.rol === 'doctor') {
       const [doctorRows] = await connection.query(
         'SELECT autorizado, activo FROM doctores WHERE usuarioId = ?',
@@ -59,7 +56,6 @@ export async function POST(req) {
       }
     }
 
-    // Si es un paciente, verificar si está activo
     if (usuario.rol === 'paciente') {
       const [pacienteRows] = await connection.query(
         'SELECT activo FROM pacientes WHERE usuarioId = ?',
@@ -77,7 +73,6 @@ export async function POST(req) {
       }
     }
     
-    // Generamos un token de sesión
     const sessionToken = Buffer.from(JSON.stringify({
       id: usuario.id,
       username: usuario.usuario || username,
@@ -85,7 +80,6 @@ export async function POST(req) {
       timestamp: Date.now()
     })).toString('base64');
     
-    // Descifrar campos sensibles si existen (_ct/_iv/_tag)
     try {
       usuario.nombre = decryptTriple(usuario, 'nombre') || decryptFromPacked(usuario.nombre) || usuario.nombre;
       usuario.correo = decryptTriple(usuario, 'correo') || decryptFromPacked(usuario.correo) || usuario.correo;

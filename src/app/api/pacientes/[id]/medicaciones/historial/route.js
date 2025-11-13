@@ -15,7 +15,6 @@ export async function GET(request, { params }) {
 
     connection = await db.getConnection();
 
-    // Obtener todas las medicaciones del paciente (activas e inactivas)
     const [medicaciones] = await connection.query(
       `SELECT id, nombreMedicamento, dosis, dias, horario, activo, fechaInicio, fechaFin
        FROM medicaciones 
@@ -27,10 +26,8 @@ export async function GET(request, { params }) {
       return NextResponse.json([]);
     }
 
-    // Importar las funciones de cifrado/descifrado
     const { decryptFromPacked, isDataKeyConfigured } = await import('@/lib/crypto');
     
-    // Si hay clave de cifrado configurada, descifrar los campos
     if (isDataKeyConfigured()) {
       const decryptedMedicaciones = medicaciones.map(med => ({
         ...med,
@@ -39,7 +36,6 @@ export async function GET(request, { params }) {
         notas: med.notas ? decryptFromPacked(med.notas) : ''
       }));
       
-      // Reemplazar el array original con los datos descifrados
       medicaciones.length = 0;
       medicaciones.push(...decryptedMedicaciones);
     } else {
@@ -49,7 +45,6 @@ export async function GET(request, { params }) {
     // Función para marcar dosis perdidas automáticamente
     const marcarDosisPerdidas = async (medicacion, fecha) => {
       try {
-        // Parsear horarios
         let horarios = [];
         try {
           if (medicacion.horario) {
@@ -70,13 +65,11 @@ export async function GET(request, { params }) {
           const fechaFin = new Date(medicacion.fechaFin);
           const fechaVerificar = new Date(fecha);
           
-          // Si la fecha está antes del inicio o después del fin, no marcar como perdida
           if (fechaVerificar < fechaInicio || fechaVerificar > fechaFin) {
             return 0;
           }
         }
 
-        // Parsear días configurados
         let diasConfigurados = [];
         if (medicacion.dias) {
           diasConfigurados = medicacion.dias.split(',').map(d => d.trim().toLowerCase());
@@ -187,18 +180,15 @@ export async function GET(request, { params }) {
 
     // Procesar y formatear los datos del historial
     const historial = historialTomas.map(registro => {
-      // Procesar la fecha de manera más robusta para evitar problemas de zona horaria
       let fecha, hora;
       
       const fechaHora = registro.fechaProgramada;
       
       if (typeof fechaHora === 'string' && fechaHora.includes('T')) {
-        // Parsear manualmente para evitar problemas de zona horaria
         const [fechaPart, horaPart] = fechaHora.split('T');
         fecha = fechaPart;
         hora = horaPart?.split('.')[0] || '00:00:00';
       } else if (fechaHora instanceof Date) {
-        // Si es un objeto Date, usar métodos que respeten la zona horaria local
         const year = fechaHora.getFullYear();
         const month = String(fechaHora.getMonth() + 1).padStart(2, '0');
         const day = String(fechaHora.getDate()).padStart(2, '0');
@@ -213,7 +203,6 @@ export async function GET(request, { params }) {
         hora = '00:00:00';
       }
       
-      // Normalizar la hora para mostrar (solo HH:MM)
       const horaNormalizada = hora.substring(0, 5);
       
       return {

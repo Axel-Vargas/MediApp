@@ -25,6 +25,13 @@ export async function GET(request, { params }) {
     );
 
     if (rows.length === 0) {
+      if (connection) {
+        try {
+          connection.release();
+        } catch (releaseError) {
+          console.error('Error al liberar conexión:', releaseError);
+        }
+      }
       return NextResponse.json(
         { message: 'No se encontró un doctor asignado' },
         { status: 404 }
@@ -33,7 +40,6 @@ export async function GET(request, { params }) {
 
     const doctor = rows[0];
     
-    // Descifrar campos sensibles si están cifrados
     const doctorDescifrado = {
       ...doctor,
       nombre: decryptTriple(doctor, 'nombre') || decryptFromPacked(doctor.nombre) || doctor.nombre,

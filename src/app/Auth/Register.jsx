@@ -162,7 +162,6 @@ const Register = ({ onRegister, caregivers = [] }) => {
       return;
     }
     
-    // Validar entradas
     const fieldsToValidate = [
       { 
         name: 'nombre', 
@@ -212,7 +211,6 @@ const Register = ({ onRegister, caregivers = [] }) => {
         return;
       }
       
-      // Validar formato específico del campo
       if (field.value && field.validate && !field.validate(field.value)) {
         setToast({ 
           show: true, 

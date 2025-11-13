@@ -79,7 +79,6 @@ async function getPatientMedications(pacienteId, options = {}) {
     
     const { decryptFromPacked, isDataKeyConfigured } = await import('@/lib/crypto');
     
-    // Si hay clave de cifrado configurada, descifrar los campos sensibles
     if (isDataKeyConfigured()) {
       const decryptedRows = rows.map(row => ({
         ...row,
@@ -176,7 +175,6 @@ async function askOpenRouter(message) {
     const data = await response.json();
     let aiResponse = data.choices?.[0]?.message?.content || "Lo siento, no pude entenderte bien.";
     
-    // Limpiar tokens especiales de fin de secuencia
     aiResponse = aiResponse
       .replace(/<\/s>/g, '')           
       .replace(/<s>/g, '')             

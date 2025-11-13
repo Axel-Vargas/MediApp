@@ -17,7 +17,6 @@ export async function PUT(request, { params }) {
     
     connection = await db.getConnection();
     
-    // Verificar que el paciente existe
     const [paciente] = await connection.execute(
       'SELECT id FROM usuarios WHERE id = ? AND rol = "paciente"',
       [pacienteId]
@@ -30,7 +29,6 @@ export async function PUT(request, { params }) {
       );
     }
     
-    // Verificar que el doctor existe
     const [doctor] = await connection.execute(
       'SELECT id FROM doctores WHERE id = ?',
       [doctorId]

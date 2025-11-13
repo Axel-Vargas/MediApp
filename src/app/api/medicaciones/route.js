@@ -24,10 +24,8 @@ export async function GET(request) {
 
     const [rows] = await connection.query(query, params);
     
-    // Importar las funciones de cifrado/descifrado
     const { decryptFromPacked, isDataKeyConfigured } = await import('@/lib/crypto');
     
-    // Si hay clave de cifrado configurada, descifrar los campos
     if (isDataKeyConfigured()) {
       const decryptedRows = rows.map(row => ({
         ...row,
@@ -89,7 +87,6 @@ export async function POST(request) {
 
     await connection.beginTransaction();
 
-    // Calcular la duración en días si se proporcionan fechas
     let duracionDias = data.duracionDias || 7;
     
     if (data.fechaInicio && data.fechaFin) {
@@ -155,7 +152,6 @@ export async function POST(request) {
       placeholders = '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?';
     }
     
-    // Insertar en la base de datos
     const [result] = await connection.query(
       `INSERT INTO medicaciones (${campos}) VALUES (${placeholders})`,
       valores
@@ -207,7 +203,6 @@ export async function PUT(request, { params }) {
     
     const currentMed = current[0];
     
-    // Actualizar solo los campos proporcionados
     const updateFields = [];
     const updateValues = [];
     

@@ -9,18 +9,37 @@ export const AdminProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Cargar administrador desde localStorage al inicializar
+  // Cargar administrador desde localStorage al inicializar 
   useEffect(() => {
-    const savedAdmin = localStorage.getItem("admin");
-    if (savedAdmin) {
+    const loadAdmin = () => {
       try {
-        setAdmin(JSON.parse(savedAdmin));
+        const savedAdmin = localStorage.getItem("admin");
+        if (savedAdmin) {
+          try {
+            const parsedAdmin = JSON.parse(savedAdmin);
+            setAdmin(parsedAdmin);
+          } catch (error) {
+            console.error("Error al cargar admin desde localStorage:", error);
+            localStorage.removeItem("admin");
+          }
+        }
       } catch (error) {
-        console.error("Error al cargar admin desde localStorage:", error);
-        localStorage.removeItem("admin");
+        console.error("Error al acceder a localStorage:", error);
+      } finally {
+        setLoading(false);
       }
+    };
+    
+    // Ejecutar de forma asíncrona para no bloquear el render
+    if (typeof window !== 'undefined') {
+      if (window.requestIdleCallback) {
+        window.requestIdleCallback(loadAdmin, { timeout: 100 });
+      } else {
+        setTimeout(loadAdmin, 0);
+      }
+    } else {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   const handleLogin = (adminData) => {

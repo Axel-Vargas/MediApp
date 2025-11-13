@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from "next/navigation";
+import { FiEye, FiEyeOff } from 'react-icons/fi';
 import Toast from '@/components/Toast';
 import { validateInput, sanitizeInput, validateEmail } from '@/lib/utils/validators';
 
@@ -8,6 +9,7 @@ const Login = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const [toast, setToast] = useState({ show: false, message: '', type: 'error' });
   const [touched, setTouched] = useState({ username: false, password: false });
@@ -70,14 +72,18 @@ const Login = ({ onLogin }) => {
 
       const verifiedFrom = process.env.NEXT_PUBLIC_EMAILJS_FROM_EMAIL || 'no-reply@mediapp.local';
 
+      // Asegurarse de que el correo ingresado se use correctamente
+      const emailDestino = forgotEmail.trim().toLowerCase();
+
       const payload = {
         service_id: serviceId,
         template_id: templateId,
         user_id: publicKey,
         template_params: {
-          to_email: forgotEmail,
+          to_email: emailDestino,
+          to_name: emailDestino.split('@')[0],
           from_email: verifiedFrom,
-          reply_to: forgotEmail,
+          reply_to: emailDestino,
           from_name: 'MediApp',
           subject: 'Recuperación de contraseña',
           message: 'Hola, recibimos tu solicitud de recuperación de contraseña.',
@@ -86,8 +92,6 @@ const Login = ({ onLogin }) => {
           expiration_minutes: (tokenData?.expiresAt ? Math.ceil((new Date(tokenData.expiresAt) - Date.now()) / 60000) : '20').toString()
         }
       };
-
-      console.log('[EmailJS] Enviando payload:', payload);
 
       const res = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
         method: 'POST',
@@ -101,8 +105,6 @@ const Login = ({ onLogin }) => {
         console.error('[EmailJS] Error:', res.status, resText);
         throw new Error(resText || `No se pudo enviar el correo (status ${res.status})`);
       }
-
-      console.log('[EmailJS] Respuesta exitosa:', resText);
 
       setToast({ show: true, message: 'Hemos enviado un correo con instrucciones', type: 'success', duration: 4000 });
       setShowForgot(false);
@@ -118,7 +120,6 @@ const Login = ({ onLogin }) => {
     e.preventDefault();
     setTouched({ username: true, password: true });
 
-    // Validar entradas
     if (!username || !password) {
       setToast({
         show: true,
@@ -145,15 +146,24 @@ const Login = ({ onLogin }) => {
     }
     setLoading(true);
     setError('');
+    setToast(prev => ({ ...prev, show: false })); 
+    
     try {
-      // Usar las credenciales limpias para el login
-      await Promise.resolve(onLogin(cleanUsername, cleanPassword));
+      await onLogin(cleanUsername, cleanPassword);
     } catch (err) {
-      if (err?.message?.toLowerCase().includes('credenciales')) {
-        setToast({ show: true, message: 'Usuario o contraseña incorrectos', type: 'error' });
-      } else {
-        setToast({ show: true, message: err?.message || 'Error al iniciar sesión', type: 'error' });
-      }
+      const errorMessage = err?.message || 'Error al iniciar sesión';
+      const isCredentialError = errorMessage.toLowerCase().includes('credenciales') || 
+                                errorMessage.toLowerCase().includes('inválidas') ||
+                                errorMessage.toLowerCase().includes('invalidas') ||
+                                errorMessage.toLowerCase().includes('incorrectos') ||
+                                errorMessage.toLowerCase().includes('incorrectas');
+      
+      setToast({ 
+        show: true, 
+        message: isCredentialError ? 'Usuario o contraseña incorrectos' : errorMessage, 
+        type: 'error',
+        duration: 4000
+      });
     } finally {
       setLoading(false);
     }
@@ -162,15 +172,14 @@ const Login = ({ onLogin }) => {
   return (
     <div className="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden p-8">
       <h2 className="text-2xl font-bold text-gray-900 mb-6">Iniciar Sesión</h2>
-      {/* Toast Notification */}
       {toast.show && (
         <Toast
           message={toast.message}
           type={toast.type}
           onClose={() => setToast(prev => ({ ...prev, show: false }))}
+          duration={toast.duration || 4000}
         />
       )}
-      {error && <p className="text-red-500 mb-4">{error}</p>}
 
       {/* FORMULARIO DE PACIENTES/CUIDADORES */}
       <form onSubmit={handleSubmit}>
@@ -192,15 +201,30 @@ const Login = ({ onLogin }) => {
           <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="password">
             Contraseña
           </label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onBlur={() => setTouched((prev) => ({ ...prev, password: true }))}
-            className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none border-gray-300`}
-            disabled={loading}
-          />
+          <div className="relative">
+            <input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onBlur={() => setTouched((prev) => ({ ...prev, password: true }))}
+              className={`w-full px-3 py-2 pr-10 border rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none border-gray-300`}
+              disabled={loading}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700 focus:outline-none"
+              disabled={loading}
+              aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+            >
+              {showPassword ? (
+                <FiEyeOff className="h-5 w-5" />
+              ) : (
+                <FiEye className="h-5 w-5" />
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Olvidé mi contraseña */}
@@ -226,8 +250,14 @@ const Login = ({ onLogin }) => {
       {/* BOTÓN EXCLUSIVO PARA ADMIN - FUERA DEL FORM */}
       <button
         type="button"
-        onClick={() => router.push("/admin/login")}
+        onClick={() => {
+          router.prefetch("/admin/login");
+          router.push("/admin/login");
+        }}
         className="mt-4 w-full bg-blue-700 text-white py-2 px-4 rounded-md hover:bg-blue-800 transition-colors"
+        onMouseEnter={() => {
+          router.prefetch("/admin/login");
+        }}
       >
         Ingresar como Administrador
       </button>
@@ -243,8 +273,14 @@ const Login = ({ onLogin }) => {
 
       <button
         type="button"
-        onClick={() => router.push("/family/access")}
+        onClick={() => {
+          router.prefetch("/family/access");
+          router.push("/family/access");
+        }}
         className="w-full bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600 transition-colors"
+        onMouseEnter={() => {
+          router.prefetch("/family/access");
+        }}
       >
         Soy familiar
       </button>

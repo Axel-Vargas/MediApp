@@ -4,54 +4,26 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/context/userContext";
 import Toast from "@/components/Toast";
-import { encryptToPacked } from "@/lib/crypto";
 
 export default function AssignMedication() {
-  const { user, loading } = useUser();
+  const { user, loading, doctorPatientMedications, administrationRoutes, loadDoctorPatientMedications, loadAdministrationRoutes } = useUser();
   const router = useRouter();
-
-  // Estado para guardar las medicaciones por paciente
-  const [medicacionesPorPaciente, setMedicacionesPorPaciente] = useState({});
   
-  // Estado para las vías de administración
-  const [viasAdministracion, setViasAdministracion] = useState([]);
-  
-  // Estado para el Toast
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
+  // Cargar datos desde el contexto (con caché)
   useEffect(() => {
-    if (!user?.patients) return;
-    const fetchMedicaciones = async () => {
-      const result = {};
-      for (const paciente of user.patients) {
-        try {
-          const res = await fetch(`/api/pacientes/${paciente.id}/medicaciones`);
-          const data = await res.json();
-          result[paciente.id] = Array.isArray(data) ? data : [];
-        } catch (e) {
-          result[paciente.id] = [];
-        }
-      }
-      setMedicacionesPorPaciente(result);
-    };
-    fetchMedicaciones();
-  }, [user?.patients]);
-
-  // Cargar vías de administración
-  useEffect(() => {
-    const fetchViasAdministracion = async () => {
-      try {
-        const response = await fetch('/api/vias-administracion?activas=true');
-        const data = await response.json();
-        setViasAdministracion(Array.isArray(data) ? data : []);
-      } catch (error) {
-        console.error('Error al cargar vías de administración:', error);
-        setViasAdministracion([]);
-      }
-    };
-    
-    fetchViasAdministracion();
-  }, []);
+    if (!loading && user && user.rol === 'doctor') {
+      Promise.all([
+        loadDoctorPatientMedications().catch(err => {
+          console.error('[AssignMedication] Error al cargar medicaciones:', err);
+        }),
+        loadAdministrationRoutes().catch(err => {
+          console.error('[AssignMedication] Error al cargar vías de administración:', err);
+        })
+      ]);
+    }
+  }, [user?.id, user?.patients?.length]); 
 
   const [formData, setFormData] = useState({
     patientId: "",
@@ -86,7 +58,6 @@ export default function AssignMedication() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     
-    // Validación especial para el campo de dosis
     if (name === 'dosage') {
       const numericValue = value.replace(/[^0-9.]/g, '');
       
@@ -111,7 +82,6 @@ export default function AssignMedication() {
     setFormData((prev) => ({ ...prev, times: [...prev.times, ""] }));
   };
 
-  // Manejar el cambio de los checkboxes de días
   const handleFrequencyChange = (day) => {
     setFormData((prev) => {
       if (prev.frequency.includes(day)) {
@@ -134,31 +104,26 @@ export default function AssignMedication() {
     e.preventDefault();
 
     try {
-      // Validar que se haya seleccionado un paciente
       if (!formData.patientId) {
         showToast('Por favor selecciona un paciente', 'error');
         return;
       }
 
-      // Validar campos requeridos
       if (!formData.name || !formData.dosage || formData.times.length === 0 || formData.frequency.length === 0) {
         showToast('Por favor completa todos los campos requeridos', 'error');
         return;
       }
 
-      // Validar que al menos un horario tenga un valor
       if (formData.times.every(time => !time.trim())) {
         showToast('Por favor ingresa al menos un horario', 'error');
         return;
       }
 
-      // Validar fechas
       if (!formData.startDate) {
         showToast('Por favor ingresa la fecha de inicio', 'error');
         return;
       }
 
-      // Calcular duración en días si hay fecha de fin
       let diffDays = 0;
       if (formData.startDate && formData.endDate) {
         const start = new Date(formData.startDate);
@@ -196,11 +161,8 @@ export default function AssignMedication() {
 
       const result = await response.json();
 
-      // Actualizar el estado local con la nueva medicación
-      setMedicacionesPorPaciente(prev => ({
-        ...prev,
-        [formData.patientId]: [...(prev[formData.patientId] || []), result]
-      }));
+      // Invalidar caché de medicaciones para recargar
+      await loadDoctorPatientMedications(true);
 
       showToast('Medicación asignada correctamente', 'success');
 
@@ -263,7 +225,7 @@ export default function AssignMedication() {
                 required
               >
                 <option value="">Seleccionar vía</option>
-                {viasAdministracion.map((via) => (
+                {administrationRoutes.map((via) => (
                   <option key={via.id} value={via.id}>
                     {via.nombre}
                   </option>
@@ -479,7 +441,7 @@ export default function AssignMedication() {
                 {patient.nombre}
               </h4>
               <p className="text-sm text-gray-600">
-                Medicamentos: {(medicacionesPorPaciente[patient.id] || []).length} | Pendientes: 0
+                Medicamentos: {(doctorPatientMedications[patient.id] || []).length} | Pendientes: 0
               </p>
             </div>
           ))}

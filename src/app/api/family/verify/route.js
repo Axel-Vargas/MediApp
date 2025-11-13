@@ -71,13 +71,11 @@ export async function POST(request) {
     // Descifrar los datos del familiar y paciente si hay clave configurada
     if (isDataKeyConfigured()) {
       try {
-        // Descifrar datos del familiar
         familiar.nombre = decryptFromPacked(familiar.nombre) || familiar.nombre;
         familiar.email = decryptFromPacked(familiar.email) || familiar.email;
         familiar.telefono = decryptFromPacked(familiar.telefono) || familiar.telefono;
         familiar.relacion = decryptFromPacked(familiar.relacion) || familiar.relacion;
         
-        // Descifrar datos del paciente
         familiar.pacienteNombre = decryptFromPacked(familiar.pacienteNombre) || familiar.pacienteNombre;
         familiar.pacienteTelefono = decryptFromPacked(familiar.pacienteTelefono) || familiar.pacienteTelefono;
         

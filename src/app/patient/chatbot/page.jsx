@@ -2,17 +2,14 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useUser } from "@/context/userContext";
-import { userService } from "@/lib/services/userService";
 import { useRouter } from "next/navigation";
 
 
 const MAX_MESSAGE_LENGTH = 70;
 
 export default function Chatbot() {
-  const { user, loading } = useUser();
+  const { user, loading, pacienteId, patientMedications, loadPatientMedications } = useUser();
   const router = useRouter();
-  const [medications, setMedications] = useState([]);
-  const [isLoadingMedications, setIsLoadingMedications] = useState(true);
   const [error, setError] = useState(null);
   const [messages, setMessages] = useState([
     {
@@ -25,65 +22,21 @@ export default function Chatbot() {
   const [isLoading, setIsLoading] = useState(false);
   const [characterCount, setCharacterCount] = useState(0);
   const messagesEndRef = useRef(null);
-  const [pacienteId, setPacienteId] = useState(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Cargar pacienteId al montar el componente
+  // Cargar medicamentos desde el contexto (con caché)
   useEffect(() => {
-    let isMounted = true;
-    const cargarPaciente = async () => {
-      if (!user?.id) return;
-      try {
-        const paciente = await userService.getPacienteByUsuarioId(user.id);
-        if (isMounted && paciente && paciente.id) {
-          setPacienteId(paciente.id);
-        }
-      } catch (err) {
-        if (isMounted) setPacienteId(null);
-      }
-    };
-    cargarPaciente();
-    return () => { isMounted = false; };
-  }, [user?.id]);
-
-  // Cargar medicamentos del paciente al montar el componente
-  useEffect(() => {
-    const controller = new AbortController();
-    let isMounted = true;
-    
-    const loadMedications = async () => {
-      if (!pacienteId) {
-        setIsLoadingMedications(false);
-        return;
-      }
-      try {
-        const data = await userService.getPacienteMedicaciones
-          ? await userService.getPacienteMedicaciones(pacienteId)
-          : [];
-        if (isMounted) {
-          setMedications(Array.isArray(data) ? data : []);
-          setError(null);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError('No se pudieron cargar los medicamentos');
-          setMedications([]);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoadingMedications(false);
-        }
-      }
-    };
-    loadMedications();
-    return () => {
-      isMounted = false;
-      controller.abort();
-    };
-  }, [pacienteId]);
+    if (!loading && user && user.rol === 'paciente' && pacienteId) {
+      loadPatientMedications().catch(err => {
+        console.error('[Chatbot] Error al cargar medicaciones:', err);
+        setError('No se pudieron cargar los medicamentos');
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, pacienteId]); // Solo cargar si cambia el usuario o pacienteId
 
   useEffect(() => {
     scrollToBottom();
@@ -251,20 +204,16 @@ export default function Chatbot() {
       <div className="bg-white p-6 rounded-xl shadow-md">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Tus Medicamentos</h3>
         <div className="space-y-3">
-          {isLoadingMedications ? (
-            <div className="flex justify-center py-4">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-            </div>
-          ) : error ? (
+          {error && (!patientMedications || patientMedications.length === 0) ? (
             <div className="text-red-500 text-sm p-2 bg-red-50 rounded">
               {error}
             </div>
-          ) : medications && medications.length > 0 ? (
-            medications
+          ) : patientMedications && patientMedications.length > 0 ? (
+            patientMedications
               .filter(med => med.activo === true || med.activo === 1 || med.active === true)
               .map((med) => (
                 <div key={med.id || med._id} className="p-3 border border-gray-200 rounded-lg">
-                  <h4 className="font-medium text-gray-900">{med.name || med.nombre} {med.dosage && `(${med.dosage})`}</h4>
+                  <h4 className="font-medium text-gray-900">{med.nombreMedicamento || med.name || med.nombre} {med.dosis && `(${med.dosis})`}</h4>
                 </div>
               ))
           ) : (

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
+import { obtenerFechaLocal, fechaLocalToString } from '@/lib/utils/dateHelpers';
 
 // POST - Marcar automáticamente todas las dosis perdidas
 export async function POST() {
@@ -27,13 +28,11 @@ export async function POST() {
     let totalDosisMarcadas = 0;
     const now = new Date();
     const toleranceMinutes = 5;
-    const fechaActual = now.toISOString().split('T')[0];
+    const fechaActual = obtenerFechaLocal();
     const medicacionesProcesadas = [];
 
-    // Procesar cada medicación
     for (const medicacion of medicaciones) {
       try {
-        // Parsear horarios
         let horarios = [];
         try {
           if (medicacion.horario) {
@@ -49,7 +48,6 @@ export async function POST() {
           continue;
         }
 
-        // Parsear días
         let diasConfigurados = [];
         if (medicacion.dias) {
           diasConfigurados = medicacion.dias.split(',').map(d => d.trim().toLowerCase());
@@ -68,7 +66,7 @@ export async function POST() {
         if (medicacion.fechaInicio && medicacion.fechaFin) {
           const fechaInicio = new Date(medicacion.fechaInicio);
           const fechaFin = new Date(medicacion.fechaFin);
-          const fechaActual = new Date(now.toISOString().split('T')[0]);
+          const fechaActual = new Date(obtenerFechaLocal());
           
           // Si la fecha actual está antes del inicio o después del fin, no procesar
           if (fechaActual < fechaInicio || fechaActual > fechaFin) {
@@ -77,7 +75,6 @@ export async function POST() {
           }
         }
 
-        // Obtener horarios ya registrados para hoy
         const [registrosExistentes] = await connection.query(
           `SELECT TIME(fechaProgramada) as horario, tomado
            FROM historial_tomas 
@@ -169,7 +166,7 @@ export async function GET() {
     connection = await db.getConnection();
 
     const now = new Date();
-    const fechaActual = now.toISOString().split('T')[0];
+    const fechaActual = obtenerFechaLocal();
     const currentTime = now.getHours() * 60 + now.getMinutes();
 
     // Obtener medicaciones activas que deberían tener dosis perdidas
@@ -250,7 +247,6 @@ export async function PUT(request) {
     
     await connection.beginTransaction();
 
-    // Obtener todas las medicaciones activas
     const [medicaciones] = await connection.query(
       `SELECT id, pacienteId, nombreMedicamento, dosis, dias, horario, activo, fechaInicio, fechaFin
        FROM medicaciones 
@@ -267,13 +263,12 @@ export async function PUT(request) {
 
     let totalDosisMarcadas = 0;
     const now = new Date();
-    const fechaActual = now.toISOString().split('T')[0];
+    const fechaActual = obtenerFechaLocal();
     const medicacionesProcesadas = [];
 
     // Procesar cada medicación para los días anteriores
     for (const medicacion of medicaciones) {
       try {
-        // Parsear horarios
         let horarios = [];
         try {
           if (medicacion.horario) {
@@ -288,7 +283,6 @@ export async function PUT(request) {
           continue;
         }
 
-        // Parsear días
         let diasConfigurados = [];
         if (medicacion.dias) {
           diasConfigurados = medicacion.dias.split(',').map(d => d.trim().toLowerCase());
@@ -296,11 +290,10 @@ export async function PUT(request) {
 
         let dosisMarcadasMedicacion = 0;
 
-        // Procesar días anteriores (excluyendo hoy)
         for (let i = 1; i <= dias; i++) {
           const date = new Date();
           date.setDate(date.getDate() - i);
-          const fecha = date.toISOString().split('T')[0];
+          const fecha = fechaLocalToString(date);
           
           // Verificar si la fecha está dentro del rango de la medicación
           if (medicacion.fechaInicio && medicacion.fechaFin) {
@@ -308,7 +301,6 @@ export async function PUT(request) {
             const fechaFin = new Date(medicacion.fechaFin);
             const fechaVerificar = new Date(fecha);
             
-            // Si la fecha está antes del inicio o después del fin, no procesar
             if (fechaVerificar < fechaInicio || fechaVerificar > fechaFin) {
               continue;
             }

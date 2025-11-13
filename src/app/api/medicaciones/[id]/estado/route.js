@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
+import { obtenerFechaLocal } from '@/lib/utils/dateHelpers';
 
 // Función para obtener el inicio de la semana (lunes)
 function obtenerInicioSemana(fecha) {
@@ -31,16 +32,13 @@ export async function GET(request, { params }) {
     const { id: medicacionId } = await params;
     const { searchParams } = new URL(request.url);
     const pacienteId = searchParams.get('pacienteId');
-    const fecha = searchParams.get('fecha') || new Date().toISOString().split('T')[0];
+    const fecha = searchParams.get('fecha') || obtenerFechaLocal();
     
     console.log(`[API] Iniciando verificación de estado para medicación ${medicacionId}, paciente ${pacienteId}, fecha ${fecha}`);
     console.log(`[API] Fecha recibida: "${fecha}"`);
-    console.log(`[API] Fecha actual del servidor: "${new Date().toISOString().split('T')[0]}"`);
+    console.log(`[API] Fecha actual del servidor (local): "${obtenerFechaLocal()}"`);
     console.log(`[API] Día de la semana de la fecha recibida: "${new Date(fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long' })}"`);
     
-
-
-    // Verificar que el ID es válido
     if (!medicacionId || isNaN(parseInt(medicacionId))) {
       return NextResponse.json({ message: 'ID de medicación inválido' }, { status: 400 });
     }
@@ -51,7 +49,6 @@ export async function GET(request, { params }) {
 
     connection = await db.getConnection();
 
-    // Verificar que la medicación existe y pertenece al paciente
     const [medicacion] = await connection.query(
       `SELECT id, nombreMedicamento, dosis, dias, horario, activo, fechaInicio, fechaFin
        FROM medicaciones 
@@ -64,7 +61,6 @@ export async function GET(request, { params }) {
       try {
         const medicacionData = medicacion[0];
         
-        // Parsear horarios
         let horarios = [];
         try {
           if (medicacionData.horario) {
@@ -74,7 +70,6 @@ export async function GET(request, { params }) {
           horarios = [medicacionData.horario];
         }
 
-        // Parsear días
         let dias = [];
         if (medicacionData.dias) {
           dias = medicacionData.dias.split(',').map(d => d.trim().toLowerCase());
@@ -86,13 +81,11 @@ export async function GET(request, { params }) {
         const debeTomarHoy = dias.length === 0 || dias.includes(diaSemanaActual);
 
         if (debeTomarHoy && horarios.length > 0) {
-          // Verificar si la fecha actual está dentro del rango de la medicación
           if (medicacion[0].fechaInicio && medicacion[0].fechaFin) {
             const fechaInicio = new Date(medicacion[0].fechaInicio);
             const fechaFin = new Date(medicacion[0].fechaFin);
             const fechaVerificar = new Date(fecha);
             
-            // Si la fecha está antes del inicio o después del fin, no procesar
             if (fechaVerificar < fechaInicio || fechaVerificar > fechaFin) {
               return NextResponse.json({
                 medicacionId: medicacionId,
@@ -106,7 +99,6 @@ export async function GET(request, { params }) {
             }
           }
           
-          // Obtener horarios ya registrados para esta fecha
           const [registrosExistentes] = await connection.query(
             `SELECT TIME(fechaProgramada) as horario
              FROM historial_tomas 
@@ -116,18 +108,15 @@ export async function GET(request, { params }) {
 
           const horariosRegistrados = registrosExistentes.map(r => r.horario.substring(0, 5));
 
-          // Obtener hora actual
           const now = new Date();
           const currentTime = now.getHours() * 60 + now.getMinutes();
           const toleranceMinutes = 5;
 
-          // Marcar horarios perdidos
           for (const horario of horarios) {
             const [hours, minutes] = horario.split(':').map(Number);
             const horarioEnMinutos = hours * 60 + minutes;
             const horarioConTolerancia = horarioEnMinutos + toleranceMinutes;
             
-            // Solo marcar como perdido si ya pasó el horario con tolerancia Y no está ya registrado
             if (horarioConTolerancia <= currentTime && !horariosRegistrados.includes(horario)) {
               const fechaProgramada = `${fecha}T${horario}`;
               
@@ -154,10 +143,8 @@ export async function GET(request, { params }) {
       );
     }
 
-    // Obtener los días configurados para esta medicación
     const diasConfigurados = medicacion[0].dias ? medicacion[0].dias.split(',').map(d => d.trim().toLowerCase()) : [];
     
-    // Si no hay días configurados, verificar solo para la fecha específica
     if (diasConfigurados.length === 0) {
       const [registroExistente] = await connection.query(
         `SELECT id, tomado, fechaMarcado
@@ -177,7 +164,6 @@ export async function GET(request, { params }) {
       });
     }
 
-    // Si hay días configurados, verificar si ya fue tomada en el día de la semana actual
     const fechaActual = new Date(fecha + 'T12:00:00'); 
     const diaSemanaActual = fechaActual.toLocaleDateString('es-ES', { weekday: 'long' }).toLowerCase();
     
@@ -185,7 +171,6 @@ export async function GET(request, { params }) {
     console.log(`[API] - Día actual: "${diaSemanaActual}"`);
     console.log(`[API] - Días configurados: [${diasConfigurados.join(', ')}]`);
     
-    // Verificar si el día actual está en los días configurados
     const debeTomarHoy = diasConfigurados.includes(diaSemanaActual);
     
     console.log(`[API] - Debe tomar hoy: ${debeTomarHoy}`);
@@ -203,7 +188,6 @@ export async function GET(request, { params }) {
       });
     }
 
-    // Obtener los horarios configurados para esta medicación
     let horarios = [];
     try {
       horarios = JSON.parse(medicacion[0].horario);
@@ -214,7 +198,6 @@ export async function GET(request, { params }) {
     
     console.log(`[API] Horarios configurados: [${horarios.join(', ')}]`);
     
-    // Verificar el estado de cada horario individualmente
     const estadoHorarios = [];
     let yaTomada = false;
     let fechaMarcado = null;
@@ -227,7 +210,6 @@ export async function GET(request, { params }) {
        console.log(`[API] - Formato T: "${fechaProgramada}"`);
        console.log(`[API] - Formato espacio: "${fechaProgramadaConEspacio}"`);
        
-       // Buscar si ya se tomó en este horario específico
        const [registroHorario] = await connection.query(
          `SELECT id, tomado, fechaMarcado, fechaProgramada
           FROM historial_tomas 
@@ -250,7 +232,6 @@ export async function GET(request, { params }) {
          fechaMarcado: horarioTomado ? registroHorario[0].fechaMarcado : null
        });
        
-       // Si algún horario fue tomado, marcar como ya tomada
        if (horarioTomado) {
          yaTomada = true;
          fechaMarcado = registroHorario[0].fechaMarcado;
@@ -259,11 +240,9 @@ export async function GET(request, { params }) {
     
     console.log(`[API] Estado de horarios:`, estadoHorarios);
     
-    // Para múltiples horarios, debeTomarHoy debe ser true si hay al menos un horario disponible
     const tieneHorariosDisponibles = estadoHorarios.some(h => !h.tomado);
     const finalDebeTomarHoy = debeTomarHoy && tieneHorariosDisponibles;
     
-    // Verificar si hay dosis perdidas (todos los horarios pasaron y no fueron tomados)
     const now = new Date();
     const currentTime = now.getHours() * 60 + now.getMinutes();
     const toleranceMinutes = 5;
@@ -276,7 +255,6 @@ export async function GET(request, { params }) {
         const timeWithTolerance = timeInMinutes + toleranceMinutes;
         const hasPassed = currentTime >= timeWithTolerance;
         
-        // Verificar si este horario específico fue tomado
         const horarioTomado = estadoHorarios.find(h => h.horario === horario)?.tomado || false;
         
         return hasPassed && !horarioTomado;
@@ -345,14 +323,12 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ message: 'ID de medicación inválido' }, { status: 400 });
     }
 
-    // Verificar que se proporciona el estado
     if (typeof active !== 'boolean') {
       return NextResponse.json({ message: 'El campo "active" es requerido y debe ser un booleano' }, { status: 400 });
     }
 
     connection = await db.getConnection();
 
-    // Verificar que la medicación existe
     const [medicacion] = await connection.query(
       `SELECT id, nombreMedicamento, pacienteId FROM medicaciones WHERE id = ?`,
       [medicacionId]

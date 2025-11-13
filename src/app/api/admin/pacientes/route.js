@@ -71,7 +71,6 @@ export async function PUT(request) {
       [activo, pacienteId]
     );
     
-    // Obtener el paciente actualizado
     const [updatedPaciente] = await connection.query(`
       SELECT 
         p.id,

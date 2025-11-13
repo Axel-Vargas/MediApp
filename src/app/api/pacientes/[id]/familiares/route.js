@@ -23,6 +23,13 @@ export async function POST(request, { params }) {
     console.log('Validación de paciente:', { pacienteId: id, pacienteEncontrado: paciente.length > 0 });
     
     if (paciente.length === 0) {
+      if (connection) {
+        try {
+          connection.release();
+        } catch (releaseError) {
+          console.error('Error al liberar conexión:', releaseError);
+        }
+      }
       return NextResponse.json({ error: 'Paciente no encontrado' }, { status: 404 });
     }
 
@@ -30,7 +37,6 @@ export async function POST(request, { params }) {
     const codigoVerificacion = Math.floor(100000 + Math.random() * 900000).toString();
     const fechaActual = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-    // Importar funciones de cifrado
     const { encryptToPacked } = await import('@/lib/crypto');
 
     await connection.query('START TRANSACTION');
@@ -111,10 +117,7 @@ export async function GET(request, { params }) {
        WHERE pf.pacienteId = ?`,
       [pacienteId]
     );
-    
-    console.log('Familiares encontrados:', familiares.length); // Para depuración
 
-    // Descifrar campos sensibles si están cifrados
     const familiaresDescifrados = familiares.map(familiar => ({
       ...familiar,
       nombre: decryptTriple(familiar, 'nombre') || decryptFromPacked(familiar.nombre) || familiar.nombre,
@@ -170,6 +173,13 @@ export async function DELETE(request, { params }) {
 
     if (verificacion.length === 0) {
       console.error('No se encontró la relación entre el paciente y el familiar');
+      if (connection) {
+        try {
+          connection.release();
+        } catch (releaseError) {
+          console.error('Error al liberar conexión:', releaseError);
+        }
+      }
       return NextResponse.json(
         { error: 'No se encontró la relación entre el paciente y el familiar' },
         { status: 404 }

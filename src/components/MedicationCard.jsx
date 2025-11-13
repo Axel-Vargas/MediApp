@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, memo } from "react";
 import Toast from "./Toast";
 import { verificarEstadoMedicacion, marcarMedicacionComoTomada, marcarDosisPerdida } from "@/lib/services/medicacionService";
 
-const MedicationCard = ({ medication, pacienteId, onMedicationTaken }) => {
+const MedicationCard = memo(({ medication, pacienteId, onMedicationTaken }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isTaken, setIsTaken] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
@@ -56,13 +56,11 @@ const MedicationCard = ({ medication, pacienteId, onMedicationTaken }) => {
     const now = getCurrentDate();
     const currentTime = now.getHours() * 60 + now.getMinutes();
 
-    // Convertir las horas del medicamento a minutos
     const timesInMinutes = medication.hours.map((time) => {
       const [hours, minutes] = time.split(":").map(Number);
       return hours * 60 + minutes;
     });
 
-    // Encontrar el horario actual (el más cercano que ya pasó)
     const currentDoseTime = timesInMinutes
       .filter(time => time <= currentTime)
       .sort((a, b) => b - a)[0];
@@ -84,7 +82,6 @@ const MedicationCard = ({ medication, pacienteId, onMedicationTaken }) => {
     const currentTime = now.getHours() * 60 + now.getMinutes();
     const toleranceMinutes = 10; 
 
-    // Convertir las horas del medicamento a minutos
     const timesInMinutes = medication.hours.map((time) => {
       const [hours, minutes] = time.split(":").map(Number);
       return hours * 60 + minutes;
@@ -122,7 +119,6 @@ const MedicationCard = ({ medication, pacienteId, onMedicationTaken }) => {
     const today = getCurrentDate().toLocaleDateString('es-ES', { weekday: 'long' });
     const todayNormalized = normalizeText(today);
     
-    // Manejar tanto arrays como strings separados por comas
     let daysArray = medication.days;
     if (typeof daysArray === 'string') {
       daysArray = daysArray.split(',').map(day => normalizeText(day.trim()));
@@ -186,13 +182,11 @@ const MedicationCard = ({ medication, pacienteId, onMedicationTaken }) => {
     const currentTime = now.getHours() * 60 + now.getMinutes();
     const toleranceMinutes = 10; 
 
-    // Convertir las horas del medicamento a minutos
     const timesInMinutes = medication.hours.map((time) => {
       const [hours, minutes] = time.split(":").map(Number);
       return hours * 60 + minutes;
     });
     
-    // Verificar si hay horarios futuros disponibles (incluyendo tolerancia)
     const hasFutureTimes = timesInMinutes.some((time, index) => {
       const timeWithTolerance = time + toleranceMinutes;
       const isFuture = currentTime < timeWithTolerance; 
@@ -202,14 +196,12 @@ const MedicationCard = ({ medication, pacienteId, onMedicationTaken }) => {
       return isFuture && !horarioTomado;
     });
     
-    // Verificar si todos los horarios ya pasaron (incluyendo tolerancia) Y no fueron tomados
     const allTimesPassed = timesInMinutes.every((time, index) => {
       const timeWithTolerance = time + toleranceMinutes;
       const hasPassed = currentTime >= timeWithTolerance; // Cambio: >= en lugar de >
       const horarioString = medication.hours[index];
       const horarioTomado = estadoHorarios.find(h => h.horario === horarioString)?.tomado || false;
       
-      // Solo considerar pasado si pasó la tolerancia Y no fue tomado
       return hasPassed && !horarioTomado;
     });
     
@@ -227,7 +219,6 @@ const MedicationCard = ({ medication, pacienteId, onMedicationTaken }) => {
     const todayNormalized = normalizeText(today);
     const indiceActual = diasSemana.findIndex(day => normalizeText(day) === todayNormalized);
     
-    // Normalizar los días configurados
     let daysArray = medication.days;
     if (typeof daysArray === 'string') {
       daysArray = daysArray.split(',').map(day => normalizeText(day.trim()));
@@ -235,12 +226,10 @@ const MedicationCard = ({ medication, pacienteId, onMedicationTaken }) => {
       daysArray = daysArray.map(day => normalizeText(day));
     }
     
-    // Verificar si hoy está en los días configurados
     if (daysArray.includes(todayNormalized)) {
       return null; 
     }
     
-    // Buscar el próximo día configurado
     for (let i = 1; i <= 7; i++) {
       const proximoIndice = (indiceActual + i) % 7;
       const proximoDia = diasSemana[proximoIndice];
@@ -279,17 +268,14 @@ const MedicationCard = ({ medication, pacienteId, onMedicationTaken }) => {
         const horariosActualizados = data.estadoHorarios || [];
         setEstadoHorarios(horariosActualizados);
         
-        // Verificar si hay horarios tomados hoy
         const hoy = new Date().toISOString().split('T')[0];
         const hayHorariosTomadosHoy = horariosActualizados.some(h => 
           h.tomado && h.fechaMarcado && h.fechaMarcado.startsWith(hoy)
         );
         
-        // Para múltiples horarios, isTaken debe ser true solo si TODOS los horarios fueron tomados
         const todosLosHorariosTomados = horariosActualizados.length > 0 && 
           horariosActualizados.every(h => h.tomado);
         
-        // Si hay horarios tomados hoy o todos los horarios están tomados, marcar como tomado
         if (hayHorariosTomadosHoy || todosLosHorariosTomados) {
           setIsTaken(true);
           const ultimoHorarioTomado = [...horariosActualizados]
@@ -316,7 +302,6 @@ const MedicationCard = ({ medication, pacienteId, onMedicationTaken }) => {
         
         setProximoDia(data.proximoDia || getNextScheduledDay());
         
-        // Usar la información de dosis perdida del servidor si está disponible
         if (data.dosisPerdida !== undefined) {
           setIsDoseMissed(data.dosisPerdida);
         } else {
@@ -381,10 +366,8 @@ const MedicationCard = ({ medication, pacienteId, onMedicationTaken }) => {
       }
     };
 
-    // Verificar cada minuto
     const interval = setInterval(checkMissedDose, 60000);
     
-    // Verificar inmediatamente
     checkMissedDose();
 
     return () => clearInterval(interval);
@@ -399,7 +382,6 @@ const MedicationCard = ({ medication, pacienteId, onMedicationTaken }) => {
     const currentMinute = currentTime.getMinutes();
     const currentTimeInMinutes = currentHour * 60 + currentMinute;
     
-    // Encontrar el horario más cercano que aún no ha pasado
     const currentSchedule = medication.hours.find(time => {
       const [hours, minutes] = time.split(':').map(Number);
       const scheduleTimeInMinutes = hours * 60 + minutes;
@@ -578,6 +560,16 @@ const MedicationCard = ({ medication, pacienteId, onMedicationTaken }) => {
       )}
     </div>
   );
-};
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.medication?.id === nextProps.medication?.id &&
+    prevProps.pacienteId === nextProps.pacienteId &&
+    prevProps.medication?.activo === nextProps.medication?.activo &&
+    prevProps.medication?.yaTomada === nextProps.medication?.yaTomada &&
+    JSON.stringify(prevProps.medication?.hours) === JSON.stringify(nextProps.medication?.hours)
+  );
+});
+
+MedicationCard.displayName = 'MedicationCard';
 
 export default MedicationCard;

@@ -37,7 +37,6 @@ export async function POST(request, { params }) {
     await connection.beginTransaction();
 
     try {
-      // Verificar que la medicación existe y pertenece al paciente
       const [medicacion] = await connection.query(
         `SELECT id, nombreMedicamento, dosis, dias, horario, activo
          FROM medicaciones 
@@ -52,7 +51,6 @@ export async function POST(request, { params }) {
         );
       }
 
-      // Usar la fecha actual del servidor para evitar problemas de zona horaria
       const fechaActual = new Date();
       const fechaHoy = fechaActual.toLocaleDateString('en-CA'); 
       
@@ -61,7 +59,6 @@ export async function POST(request, { params }) {
       console.log(`[API] Fecha ISO: ${fechaActual.toISOString()}`);
       console.log(`[API] Fecha local: ${fechaActual.toString()}`);
       
-      // Obtener los días configurados para esta medicación
       const diasConfigurados = medicacion[0].dias ? medicacion[0].dias.split(',').map(d => d.trim().toLowerCase()) : [];
       
       // Verificar si la medicación se debe tomar hoy según los días configurados
@@ -75,7 +72,6 @@ export async function POST(request, { params }) {
         );
       }
       
-      // Si no hay días configurados, usar la lógica original
       if (diasConfigurados.length === 0) {
         const [registroExistente] = await connection.query(
           `SELECT id, tomado 
@@ -87,7 +83,6 @@ export async function POST(request, { params }) {
         );
 
         if (registroExistente.length > 0) {
-          // Si ya existe un registro y ya está marcado como tomado, devolver error
           if (registroExistente[0].tomado === 1 || registroExistente[0].tomado === true) {
             return NextResponse.json(
               { message: 'Esta medicación ya fue marcada como tomada hoy' },
@@ -112,10 +107,8 @@ export async function POST(request, { params }) {
           );
         }
       } else {
-        // Si hay días configurados, verificar si ya fue tomada en este día de la semana
         const diaSemanaActual = fechaActual.toLocaleDateString('es-ES', { weekday: 'long' }).toLowerCase();
         
-        // Verificar si el día actual está en los días configurados
         if (!diasConfigurados.includes(diaSemanaActual)) {
           return NextResponse.json(
             { message: `Esta medicación no se debe tomar los ${fechaActual.toLocaleDateString('es-ES', { weekday: 'long' })}` },

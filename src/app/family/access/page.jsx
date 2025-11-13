@@ -59,7 +59,6 @@ export default function FamilyAccessPage() {
     setLoading(true);
     
     try {
-      // Verificar el código con el servidor
       const response = await fetch('/api/family/verify', {
         method: 'POST',
         headers: {
@@ -97,6 +96,7 @@ export default function FamilyAccessPage() {
         }
       }
       
+      router.prefetch('/family/dashboard');
       router.push('/family/dashboard');
       
     } catch (error) {
@@ -126,7 +126,6 @@ export default function FamilyAccessPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-md relative">
-        {/* Ayuda para notificaciones bloqueadas */}
         {notificationBlocked && (
           <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded">
             <div className="flex">
@@ -164,7 +163,13 @@ export default function FamilyAccessPage() {
         )}
         <div>
           <button
-            onClick={() => router.push('/')}
+            onClick={() => {
+              router.prefetch('/');
+              router.push('/');
+            }}
+            onMouseEnter={() => {
+              router.prefetch('/');
+            }}
             className="flex items-center text-blue-600 hover:text-blue-800 mb-4"
           >
             <ArrowLeftIcon className="h-5 w-5 mr-1" />
