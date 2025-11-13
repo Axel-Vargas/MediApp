@@ -138,6 +138,9 @@ export const UserProvider = ({ children }) => {
   const medicationHistoryLoadingRef = useRef({});
 
   // Mostrar advertencia de inactividad
+  // Nota: handleInactiveLogout se define después de handleLogout
+  const showWarningRef = useRef(null);
+
   const showWarning = useCallback(() => {
     if (!user) return;
 
@@ -156,19 +159,12 @@ export const UserProvider = ({ children }) => {
 
     inactivityWarningRef.current = setTimeout(() => {
       setShowInactivityWarning(false);
-      handleInactiveLogout();
+      // Usar handleInactiveLogout si está disponible, sino handleLogout directamente
+      if (showWarningRef.current) {
+        showWarningRef.current();
+      }
     }, 30000);
   }, [user, showInactivityWarning]);
-
-  // Manejar cierre de sesión por inactividad
-  const handleInactiveLogout = () => {
-    if (inactivityWarningRef.current) {
-      clearTimeout(inactivityWarningRef.current);
-      inactivityWarningRef.current = null;
-    }
-    setShowInactivityWarning(false);
-    handleLogout();
-  };
 
   // Extender la sesión cuando el usuario hace clic en "Continuar"
   const handleContinueSession = useCallback(() => {
@@ -181,7 +177,7 @@ export const UserProvider = ({ children }) => {
 
     authManager.isWarningActive = false;
     authManager.resetInactivityTimer(handleInactiveLogout, showWarning);
-  }, [showWarning]);
+  }, [showWarning, handleInactiveLogout]);
 
   // Función para cargar usuarios (solo cuando sea necesario y con caché)
   const loadAllUsers = useCallback(async (forceRefresh = false) => {
@@ -359,14 +355,16 @@ export const UserProvider = ({ children }) => {
     });
 
     return () => {
-      activityHandlersRef.current.forEach(handler => {
+      // Copiar el ref a una variable local para usar en cleanup
+      const handlers = activityHandlersRef.current;
+      handlers.forEach(handler => {
         window.removeEventListener('mousemove', handler);
         window.removeEventListener('keydown', handler);
         window.removeEventListener('scroll', handler);
         window.removeEventListener('click', handler);
         window.removeEventListener('touchstart', handler);
       });
-      activityHandlersRef.current.clear();
+      handlers.clear();
       authManager.clearTimers();
       setShowInactivityWarning(false);
       if (inactivityWarningRef.current) {
@@ -374,7 +372,7 @@ export const UserProvider = ({ children }) => {
         inactivityWarningRef.current = null;
       }
     };
-  }, [user]);
+  }, [user, handleInactiveLogout, showWarning, showInactivityWarning]);
 
   // Marcar dosis perdidas de días anteriores solo cuando el usuario se conecta por primera vez
   useEffect(() => {
@@ -383,7 +381,7 @@ export const UserProvider = ({ children }) => {
         console.warn('[UserContext] Error al marcar dosis perdidas de días anteriores:', error);
       });
     }
-  }, [user?.id]);
+  }, [user?.id, user?.rol]);
 
   // Iniciar sesión
   const handleLogin = async (username, password) => {
@@ -508,6 +506,19 @@ export const UserProvider = ({ children }) => {
       console.error('Error en handleLogout:', error);
     }
   };
+
+  // Manejar cierre de sesión por inactividad (definir después de handleLogout)
+  const handleInactiveLogout = useCallback(() => {
+    if (inactivityWarningRef.current) {
+      clearTimeout(inactivityWarningRef.current);
+      inactivityWarningRef.current = null;
+    }
+    setShowInactivityWarning(false);
+    handleLogout();
+  }, []);
+
+  // Asignar handleInactiveLogout al ref para que showWarning lo pueda usar
+  showWarningRef.current = handleInactiveLogout;
 
   // Agregar familiar
   const handleAddFamilyMember = async (pacienteId, familyMember) => {
@@ -1055,7 +1066,7 @@ export const UserProvider = ({ children }) => {
     medicationHistory,
     loadMedicationHistory,
     invalidateMedicationHistory
-  }), [user, allUsers, selectedPatient, pacienteId, loading, error, getCaregivers, getPatients, getPacienteId, loadAllUsers, patientMedications, patientFamilyMembers, patientDoctor, loadPatientMedications, loadPatientFamilyMembers, loadPatientDoctor, doctorPatientMedications, administrationRoutes, loadDoctorPatientMedications, loadAdministrationRoutes, medicationHistory, loadMedicationHistory, invalidateMedicationHistory]);
+  }), [user, allUsers, selectedPatient, pacienteId, loading, error, getCaregivers, getPatients, getPacienteId, loadAllUsers, patientMedications, patientFamilyMembers, patientDoctor, loadPatientMedications, loadPatientFamilyMembers, loadPatientDoctor, doctorPatientMedications, administrationRoutes, loadDoctorPatientMedications, loadAdministrationRoutes, medicationHistory, loadMedicationHistory, invalidateMedicationHistory, handleAddFamilyMember, handleLogin, handleRegister, handleRemoveFamilyMember, updateUserProfile]);
 
   return (
     <UserContext.Provider value={contextValue}>

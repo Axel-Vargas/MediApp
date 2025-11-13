@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import Login from "@/app/Auth/Login";
+import Login from "@/app/Auth/login";
 import Register from "@/app/Auth/Register";
 import "@/globals.css";
 

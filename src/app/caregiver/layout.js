@@ -29,7 +29,7 @@ export default function CaregiverLayout({ children }) {
         })
       ]);
     }
-  }, [user?.id, user?.patients?.length]); 
+  }, [user?.id, user?.patients?.length, user?.rol, loadDoctorPatientMedications, loadAdministrationRoutes]); 
 
   useEffect(() => {
     if (!loading && (!user || user.rol !== "doctor")) {

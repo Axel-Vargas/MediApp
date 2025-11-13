@@ -11,11 +11,12 @@ export default function Home() {
   const router = useRouter();
   const pathname = usePathname();
 
-  if (pathname !== "/") {
-    return null;
-  }
-
+  // Mover todos los hooks ANTES de cualquier early return
   useEffect(() => {
+    if (pathname !== "/") {
+      return;
+    }
+    
     if (!user && !loading && loadAllUsers && pathname === "/") {
       const loadUsers = () => {
         loadAllUsers().catch(() => {
@@ -61,7 +62,7 @@ export default function Home() {
   }, [allUsers]);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || pathname !== "/") {
+    if (pathname !== "/") {
       return;
     }
 
@@ -78,6 +79,11 @@ export default function Home() {
       router.replace(targetPath);
     }
   }, [loading, user, pathname, router]);
+
+  // AHORA SÍ podemos hacer el early return después de todos los hooks
+  if (pathname !== "/") {
+    return null;
+  }
 
 
   return (
