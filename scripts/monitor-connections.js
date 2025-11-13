@@ -10,6 +10,7 @@ const dbConfig = {
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'mediapp',
+  port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 3306,
   connectionLimit: 50,
   waitForConnections: true,
   queueLimit: 500,
