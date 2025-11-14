@@ -213,8 +213,8 @@ export async function POST(request) {
         }
         
         await connection.query(
-          'INSERT INTO doctores (usuarioId, especialidad, autorizado) VALUES (?, ?, ?)',
-          [userId, parseInt(especialidad, 10), false]
+          'INSERT INTO doctores (usuarioId, especialidad, autorizado, activo) VALUES (?, ?, ?, ?)',
+          [userId, parseInt(especialidad, 10), false, 1]
         );
       }
       
