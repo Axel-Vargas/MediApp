@@ -107,7 +107,8 @@ const authManager = {
 const httpClient = {
   request: async (endpoint, options = {}) => {
     const token = authManager.getToken();
-    const url = `${API_URL}${endpoint}`;
+    // Si API_URL está vacío, usar ruta relativa (para Next.js API routes en el mismo servidor)
+    const url = API_URL ? `${API_URL}${endpoint}` : endpoint;
     
     const defaultHeaders = {
       'Content-Type': 'application/json'
@@ -119,8 +120,8 @@ const httpClient = {
         ...defaultHeaders,
         ...options.headers
       },
-      credentials: 'include',
-      mode: 'cors'
+      credentials: 'include'
+      // Removido mode: 'cors' ya que las rutas API están en el mismo servidor
     };
 
     if (token) {
@@ -155,13 +156,48 @@ const httpClient = {
         return null;
       }
     } catch (error) {
+      // Mejorar el manejo de errores para detectar diferentes tipos
+      const errorMessage = error.message || '';
+      const isNetworkError = 
+        error.name === 'NetworkError' ||
+        (error.name === 'TypeError' && (
+          errorMessage.includes('fetch') ||
+          errorMessage.includes('Failed to fetch') ||
+          errorMessage.includes('Network request failed') ||
+          errorMessage.includes('NetworkError') ||
+          errorMessage.includes('ERR_NETWORK') ||
+          errorMessage.includes('ERR_INTERNET_DISCONNECTED') ||
+          errorMessage.includes('ERR_CONNECTION_REFUSED')
+        ));
+      
+      if (isNetworkError) {
+        // Error de red (servidor no disponible, sin conexión, etc.)
+        const networkError = new Error('Error de conexión. Por favor, verifica que el servidor esté corriendo y tu conexión a internet.');
+        networkError.status = 0;
+        networkError.isNetworkError = true;
+        networkError.originalError = error;
+        if (!((error.message || '').toLowerCase().includes('credenciales'))) {
+          console.error(`Error de red en petición a ${endpoint} (URL: ${url}):`, error);
+        }
+        throw networkError;
+      }
+      
+      // Si el error ya tiene status, mantenerlo
+      if (error.status) {
+        if (!((error.message || '').toLowerCase().includes('credenciales'))) {
+          console.error(`Error en petición a ${endpoint}:`, error);
+        }
+        throw error;
+      }
+      
+      // Error desconocido sin status
       if (!((error.message || '').toLowerCase().includes('credenciales'))) {
-        console.error(`Error en petición a ${endpoint}:`, error);
+        console.error(`Error desconocido en petición a ${endpoint} (URL: ${url}):`, error);
       }
-      if (!error.status) {
-        error.message = 'Error de conexión. Por favor, verifica tu conexión a internet.';
-      }
-      throw error;
+      const unknownError = new Error(error.message || 'Error de conexión. Por favor, verifica tu conexión a internet.');
+      unknownError.status = 0;
+      unknownError.originalError = error;
+      throw unknownError;
     }
   }
 };
