@@ -214,7 +214,7 @@ export async function POST(request) {
         
         await connection.query(
           'INSERT INTO doctores (usuarioId, especialidad, autorizado, activo) VALUES (?, ?, ?, ?)',
-          [userId, parseInt(especialidad, 10), false, 1]
+          [userId, parseInt(especialidad, 10), false, 0]
         );
       }
       
