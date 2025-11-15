@@ -65,7 +65,7 @@ const NavigationTabs = ({ isPatient, caregivers, onLogin, onRegister }) => {
           </div>
         </div>
       ) : (
-        <div className="flex border-b border-gray-200 mb-6 text-lg">
+        <div className="flex w-full border-b border-gray-200 mb-6">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -76,7 +76,7 @@ const NavigationTabs = ({ isPatient, caregivers, onLogin, onRegister }) => {
               onMouseEnter={() => {
                 router.prefetch(tab.route);
               }}
-              className={`py-2 px-5 font-medium transition-colors ${
+              className={`flex-1 py-2 px-2 sm:px-3 md:px-5 text-sm sm:text-base md:text-lg font-medium transition-colors whitespace-nowrap ${
                 pathname === tab.route
                   ? "border-b-2 border-blue-500 text-white bg-blue-300 rounded-t-lg"
                   : "text-gray-500 hover:text-gray-700"
