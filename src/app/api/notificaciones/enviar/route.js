@@ -24,12 +24,60 @@ export async function POST(request) {
     const [serverTime] = await connection.query('SELECT NOW() as currentTime');
     console.log('Hora actual del servidor:', serverTime[0].currentTime);
 
-    // 🔍 DEBUG: Verificar cuántas notificaciones pendientes existen
+    // 🔍 DEBUG: Verificar TODAS las notificaciones en la base de datos
+    const [debugTodas] = await connection.query(
+      `SELECT id, estado, fechaProgramada, destinatario, pacienteId, medicacionId,
+              DATE_FORMAT(fechaProgramada, '%Y-%m-%d %H:%i:%s') as fechaFormateada,
+              TIMESTAMPDIFF(SECOND, fechaProgramada, NOW()) as segundosDesdeFecha
+       FROM notificaciones 
+       ORDER BY fechaProgramada DESC
+       LIMIT 20`
+    );
+    console.log(`🔍 [DEBUG] Total de notificaciones en BD: ${debugTodas.length}`);
+    if (debugTodas.length > 0) {
+      console.log('🔍 [DEBUG] Ejemplos de notificaciones en BD:', debugTodas.map(n => ({
+        id: n.id,
+        estado: n.estado,
+        fechaProgramada: n.fechaProgramada,
+        fechaFormateada: n.fechaFormateada,
+        segundosDesdeFecha: n.segundosDesdeFecha,
+        destinatario: n.destinatario,
+        pacienteId: n.pacienteId,
+        medicacionId: n.medicacionId
+      })));
+    }
+
+    // 🔍 DEBUG: Verificar notificaciones con estado pendiente (sin filtro de fecha)
+    const [debugPendientesSinFecha] = await connection.query(
+      `SELECT COUNT(*) as total FROM notificaciones WHERE estado = 'pendiente'`
+    );
+    console.log(`🔍 [DEBUG] Notificaciones con estado 'pendiente' (sin filtro fecha): ${debugPendientesSinFecha[0].total}`);
+
+    // 🔍 DEBUG: Verificar cuántas notificaciones pendientes existen con filtro de fecha
     const [debugPendientes] = await connection.query(
       `SELECT COUNT(*) as total FROM notificaciones 
        WHERE estado = 'pendiente' AND fechaProgramada <= NOW()`
     );
-    console.log(`🔍 [DEBUG] Notificaciones pendientes totales: ${debugPendientes[0].total}`);
+    console.log(`🔍 [DEBUG] Notificaciones pendientes con fechaProgramada <= NOW(): ${debugPendientes[0].total}`);
+
+    // 🔍 DEBUG: Verificar notificaciones pendientes con fechaProgramada > NOW()
+    const [debugPendientesFuturas] = await connection.query(
+      `SELECT id, estado, fechaProgramada, 
+              DATE_FORMAT(fechaProgramada, '%Y-%m-%d %H:%i:%s') as fechaFormateada,
+              TIMESTAMPDIFF(SECOND, NOW(), fechaProgramada) as segundosHastaFecha
+       FROM notificaciones 
+       WHERE estado = 'pendiente' AND fechaProgramada > NOW()
+       LIMIT 10`
+    );
+    console.log(`🔍 [DEBUG] Notificaciones pendientes con fechaProgramada > NOW(): ${debugPendientesFuturas.length}`);
+    if (debugPendientesFuturas.length > 0) {
+      console.log('🔍 [DEBUG] Ejemplos de notificaciones pendientes futuras:', debugPendientesFuturas.map(n => ({
+        id: n.id,
+        fechaProgramada: n.fechaProgramada,
+        fechaFormateada: n.fechaFormateada,
+        segundosHastaFecha: n.segundosHastaFecha
+      })));
+    }
 
     // 🔍 DEBUG: Verificar notificaciones sin push subscription
     const [debugSinPush] = await connection.query(
@@ -84,6 +132,40 @@ export async function POST(request) {
         userId: s.userId,
         familiarId: s.familiarId,
         endpoint: s.endpoint ? s.endpoint.substring(0, 50) + '...' : null
+      })));
+    }
+
+    // 🔍 DEBUG: Verificar notificaciones pendientes con sus usuarios asociados
+    const [debugNotifConUsuarios] = await connection.query(
+      `SELECT n.id, n.estado, n.fechaProgramada, n.destinatario, n.pacienteId,
+              p.usuarioId as pacienteUsuarioId, u.notiWebPush, u.id as usuarioId,
+              ps.userId as subscriptionUserId, ps.familiarId as subscriptionFamiliarId,
+              ps.endpoint IS NOT NULL as tieneSuscripcion,
+              DATE_FORMAT(n.fechaProgramada, '%Y-%m-%d %H:%i:%s') as fechaFormateada
+       FROM notificaciones n
+       INNER JOIN pacientes p ON n.pacienteId = p.id
+       INNER JOIN usuarios u ON p.usuarioId = u.id
+       LEFT JOIN push_subscriptions ps ON 
+         (n.destinatario = 'paciente' AND p.usuarioId = ps.userId) OR
+         (n.destinatario = 'familiar' AND n.familiarId = ps.familiarId)
+       WHERE n.estado = 'pendiente'
+       ORDER BY n.fechaProgramada DESC
+       LIMIT 10`
+    );
+    console.log(`🔍 [DEBUG] Notificaciones pendientes con info de usuario: ${debugNotifConUsuarios.length}`);
+    if (debugNotifConUsuarios.length > 0) {
+      console.log('🔍 [DEBUG] Detalle de notificaciones pendientes:', debugNotifConUsuarios.map(n => ({
+        id: n.id,
+        estado: n.estado,
+        fechaProgramada: n.fechaFormateada,
+        destinatario: n.destinatario,
+        pacienteId: n.pacienteId,
+        pacienteUsuarioId: n.pacienteUsuarioId,
+        usuarioId: n.usuarioId,
+        notiWebPush: n.notiWebPush,
+        subscriptionUserId: n.subscriptionUserId,
+        subscriptionFamiliarId: n.subscriptionFamiliarId,
+        tieneSuscripcion: n.tieneSuscripcion
       })));
     }
 
