@@ -105,9 +105,33 @@ export async function POST(request) {
         });
         
         if (tieneSuscripcion) {
+          // Verificar si subscriptionKeys ya es un objeto o necesita parsearse
+          let keys;
+          if (typeof notificacion.subscriptionKeys === 'string') {
+            try {
+              keys = JSON.parse(notificacion.subscriptionKeys);
+            } catch (parseError) {
+              console.error(`Error al parsear subscriptionKeys para notificación ${notificacion.id}:`, parseError);
+              console.error('Valor recibido:', notificacion.subscriptionKeys);
+              continue; // Saltar esta notificación
+            }
+          } else if (typeof notificacion.subscriptionKeys === 'object' && notificacion.subscriptionKeys !== null) {
+            // Ya es un objeto, usarlo directamente
+            keys = notificacion.subscriptionKeys;
+          } else {
+            console.error(`subscriptionKeys tiene un formato inválido para notificación ${notificacion.id}:`, typeof notificacion.subscriptionKeys);
+            continue; // Saltar esta notificación
+          }
+
+          // Validar que las claves necesarias estén presentes
+          if (!keys || !keys.p256dh || !keys.auth) {
+            console.error(`Claves de suscripción incompletas para notificación ${notificacion.id}:`, keys);
+            continue; // Saltar esta notificación
+          }
+
           const subscription = {
             endpoint: notificacion.endpoint,
-            keys: JSON.parse(notificacion.subscriptionKeys)
+            keys: keys
           };
 
           const payload = JSON.stringify({
