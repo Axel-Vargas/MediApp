@@ -220,7 +220,10 @@ export const UserProvider = ({ children }) => {
     }
 
     console.log('[showWarning] Mostrando modal de inactividad');
+    console.log('[showWarning] Estado actual showInactivityWarning:', showInactivityWarning);
+    console.log('[showWarning] Usuario presente:', !!user);
     setShowInactivityWarning(true);
+    console.log('[showWarning] setShowInactivityWarning(true) llamado');
 
     inactivityWarningRef.current = setTimeout(() => {
       setShowInactivityWarning(false);
@@ -442,6 +445,17 @@ export const UserProvider = ({ children }) => {
       }
     };
   }, [user, handleInactiveLogout, showWarning, showInactivityWarning]);
+
+  // Monitorear cambios en showInactivityWarning para debugging
+  useEffect(() => {
+    console.log('[useEffect] showInactivityWarning cambió a:', showInactivityWarning);
+    console.log('[useEffect] Usuario presente:', !!user);
+    if (showInactivityWarning && user) {
+      console.log('[useEffect] ✅ Condiciones cumplidas para mostrar modal');
+    } else {
+      console.log('[useEffect] ❌ Condiciones NO cumplidas - showInactivityWarning:', showInactivityWarning, 'user:', !!user);
+    }
+  }, [showInactivityWarning, user]);
 
   // Marcar dosis perdidas de días anteriores solo cuando el usuario se conecta por primera vez
   useEffect(() => {
@@ -1075,9 +1089,30 @@ export const UserProvider = ({ children }) => {
       {children}
 
       {/* Modal de advertencia de inactividad */}
+      {console.log('[Modal Render] showInactivityWarning:', showInactivityWarning, 'user:', !!user, 'debería renderizar:', showInactivityWarning && user)}
       {showInactivityWarning && user && (
-        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]" 
+          style={{ 
+            zIndex: 9999, 
+            position: 'fixed', 
+            top: 0, 
+            left: 0, 
+            right: 0, 
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+        >
+          <div 
+            className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+            style={{ zIndex: 10000 }}
+          >
             <h3 className="text-xl font-bold mb-4">¡Atención!</h3>
             <p className="mb-4">
               Su sesión está a punto de cerrarse por inactividad.
