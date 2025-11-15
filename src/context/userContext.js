@@ -205,6 +205,9 @@ export const UserProvider = ({ children }) => {
     handleLogout();
   }, []);
 
+  // Ref para rastrear si ya se está mostrando el warning (evita recrear el callback)
+  const isShowingWarningRef = useRef(false);
+
   // Mostrar advertencia de inactividad (definir después de handleInactiveLogout)
   const showWarning = useCallback(() => {
     if (!user) return;
@@ -214,24 +217,25 @@ export const UserProvider = ({ children }) => {
       inactivityWarningRef.current = null;
     }
 
-    if (showInactivityWarning) {
+    if (isShowingWarningRef.current) {
       console.log('[showWarning] Modal ya está mostrando, ignorando llamada');
       return;
     }
 
     console.log('[showWarning] Mostrando modal de inactividad');
-    console.log('[showWarning] Estado actual showInactivityWarning:', showInactivityWarning);
     console.log('[showWarning] Usuario presente:', !!user);
+    isShowingWarningRef.current = true;
     setShowInactivityWarning(true);
     console.log('[showWarning] setShowInactivityWarning(true) llamado');
 
     inactivityWarningRef.current = setTimeout(() => {
+      isShowingWarningRef.current = false;
       setShowInactivityWarning(false);
       if (showWarningRef.current) {
         showWarningRef.current();
       }
     }, 30000);
-  }, [user, showInactivityWarning]);
+  }, [user]);
 
   // Extender la sesión cuando el usuario hace clic en "Continuar" (definir después de showWarning)
   const handleContinueSession = useCallback(() => {
@@ -240,6 +244,7 @@ export const UserProvider = ({ children }) => {
       inactivityWarningRef.current = null;
     }
 
+    isShowingWarningRef.current = false;
     setShowInactivityWarning(false);
 
     authManager.isWarningActive = false;
@@ -390,13 +395,13 @@ export const UserProvider = ({ children }) => {
     }
 
     // Configurar el temporizador de inactividad solo si no hay advertencia activa
-    if (!authManager.isWarningActive && !showInactivityWarning) {
+    if (!authManager.isWarningActive && !isShowingWarningRef.current) {
       authManager.resetInactivityTimer(handleInactiveLogout, showWarning);
     }
 
     const handleUserActivity = () => {
       // No resetear el timer si el modal está activo
-      if (!showInactivityWarning && !authManager.isWarningActive && !isModalActiveRef.current) {
+      if (!isShowingWarningRef.current && !authManager.isWarningActive && !isModalActiveRef.current) {
         authManager.resetInactivityTimer(handleInactiveLogout, showWarning);
 
         // Marcar dosis perdidas automáticamente cuando el usuario está activo (solo cada 10 minutos)
@@ -411,7 +416,7 @@ export const UserProvider = ({ children }) => {
           }
         }
       } else {
-        console.log('[handleUserActivity] No reseteando timer - showInactivityWarning:', showInactivityWarning, 'isWarningActive:', authManager.isWarningActive, 'isModalActive:', isModalActiveRef.current);
+        console.log('[handleUserActivity] No reseteando timer - isShowingWarning:', isShowingWarningRef.current, 'isWarningActive:', authManager.isWarningActive, 'isModalActive:', isModalActiveRef.current);
       }
     };
 
@@ -461,8 +466,10 @@ export const UserProvider = ({ children }) => {
     isModalActiveRef.current = showInactivityWarning && !!user;
     if (showInactivityWarning && user) {
       console.log('[useEffect] ✅ Condiciones cumplidas para mostrar modal');
+      console.log('[useEffect] isModalActiveRef.current establecido a:', isModalActiveRef.current);
     } else {
       console.log('[useEffect] ❌ Condiciones NO cumplidas - showInactivityWarning:', showInactivityWarning, 'user:', !!user);
+      isShowingWarningRef.current = false;
     }
   }, [showInactivityWarning, user]);
 
