@@ -373,11 +373,15 @@ export const UserProvider = ({ children }) => {
     checkAuthOnInit();
   }, []);
 
+  // Ref para rastrear si el modal está activo y evitar que se cierre en el cleanup
+  const isModalActiveRef = useRef(false);
+
   // Temporizador y listeners de inactividad SOLO si hay usuario autenticado
   useEffect(() => {
     if (!user) {
       authManager.clearTimers();
       setShowInactivityWarning(false);
+      isModalActiveRef.current = false;
       if (inactivityWarningRef.current) {
         clearTimeout(inactivityWarningRef.current);
         inactivityWarningRef.current = null;
@@ -386,12 +390,13 @@ export const UserProvider = ({ children }) => {
     }
 
     // Configurar el temporizador de inactividad solo si no hay advertencia activa
-    if (!authManager.isWarningActive) {
+    if (!authManager.isWarningActive && !showInactivityWarning) {
       authManager.resetInactivityTimer(handleInactiveLogout, showWarning);
     }
 
     const handleUserActivity = () => {
-      if (!showInactivityWarning && !authManager.isWarningActive) {
+      // No resetear el timer si el modal está activo
+      if (!showInactivityWarning && !authManager.isWarningActive && !isModalActiveRef.current) {
         authManager.resetInactivityTimer(handleInactiveLogout, showWarning);
 
         // Marcar dosis perdidas automáticamente cuando el usuario está activo (solo cada 10 minutos)
@@ -406,7 +411,7 @@ export const UserProvider = ({ children }) => {
           }
         }
       } else {
-        console.log('[handleUserActivity] No reseteando timer - showInactivityWarning:', showInactivityWarning, 'isWarningActive:', authManager.isWarningActive);
+        console.log('[handleUserActivity] No reseteando timer - showInactivityWarning:', showInactivityWarning, 'isWarningActive:', authManager.isWarningActive, 'isModalActive:', isModalActiveRef.current);
       }
     };
 
@@ -438,18 +443,22 @@ export const UserProvider = ({ children }) => {
       });
       handlers.clear();
       authManager.clearTimers();
-      setShowInactivityWarning(false);
-      if (inactivityWarningRef.current) {
+      // NO resetear showInactivityWarning si el modal está activo
+      if (!isModalActiveRef.current) {
+        setShowInactivityWarning(false);
+      }
+      if (inactivityWarningRef.current && !isModalActiveRef.current) {
         clearTimeout(inactivityWarningRef.current);
         inactivityWarningRef.current = null;
       }
     };
-  }, [user, handleInactiveLogout, showWarning, showInactivityWarning]);
+  }, [user, handleInactiveLogout, showWarning]);
 
-  // Monitorear cambios en showInactivityWarning para debugging
+  // Monitorear cambios en showInactivityWarning para debugging y actualizar el ref
   useEffect(() => {
     console.log('[useEffect] showInactivityWarning cambió a:', showInactivityWarning);
     console.log('[useEffect] Usuario presente:', !!user);
+    isModalActiveRef.current = showInactivityWarning && !!user;
     if (showInactivityWarning && user) {
       console.log('[useEffect] ✅ Condiciones cumplidas para mostrar modal');
     } else {
