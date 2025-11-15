@@ -194,6 +194,8 @@ function calcularFechasNotificaciones(horarios, dias, duracionDias, fechaInicio 
     'domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'
   ];
 
+  const ahora = new Date();
+
   // Iterar desde la fecha de inicio hasta la fecha de fin
   for (let fecha = new Date(fechaInicioCalculada); fecha <= fechaFinCalculada; fecha.setDate(fecha.getDate() + 1)) {
     const diaSemana = diasSemana[fecha.getDay()];
@@ -208,9 +210,12 @@ function calcularFechasNotificaciones(horarios, dias, duracionDias, fechaInicio 
       const fechaNotificacion = new Date(fecha);
       fechaNotificacion.setHours(horas, minutos, 0, 0);
       
-      // Solo agregar si la fecha es futura
-      const ahora = new Date();
-      if (fechaNotificacion > ahora) {
+      // ✅ CORREGIDO: Incluir horarios de hoy que aún no han pasado
+      // O cualquier fecha futura
+      const esHoy = fechaNotificacion.toDateString() === ahora.toDateString();
+      const esFuturo = fechaNotificacion > ahora;
+      
+      if (esFuturo || (esHoy && fechaNotificacion >= ahora)) {
         fechas.push(fechaNotificacion);
         console.log(`✅ Programando notificación para: ${fechaNotificacion.toISOString()} (${diaSemana})`);
       } else {

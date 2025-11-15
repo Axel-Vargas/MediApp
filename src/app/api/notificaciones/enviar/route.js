@@ -24,13 +24,77 @@ export async function POST(request) {
     const [serverTime] = await connection.query('SELECT NOW() as currentTime');
     console.log('Hora actual del servidor:', serverTime[0].currentTime);
 
+    // 🔍 DEBUG: Verificar cuántas notificaciones pendientes existen
+    const [debugPendientes] = await connection.query(
+      `SELECT COUNT(*) as total FROM notificaciones 
+       WHERE estado = 'pendiente' AND fechaProgramada <= NOW()`
+    );
+    console.log(`🔍 [DEBUG] Notificaciones pendientes totales: ${debugPendientes[0].total}`);
+
+    // 🔍 DEBUG: Verificar notificaciones sin push subscription
+    const [debugSinPush] = await connection.query(
+      `SELECT n.id, n.fechaProgramada, n.destinatario, n.pacienteId, p.usuarioId, u.notiWebPush
+       FROM notificaciones n
+       INNER JOIN pacientes p ON n.pacienteId = p.id
+       INNER JOIN usuarios u ON p.usuarioId = u.id
+       LEFT JOIN push_subscriptions ps ON 
+         (n.destinatario = 'paciente' AND p.usuarioId = ps.userId) OR
+         (n.destinatario = 'familiar' AND n.familiarId = ps.familiarId)
+       WHERE n.estado = 'pendiente' 
+       AND n.fechaProgramada <= NOW()
+       AND ps.endpoint IS NULL
+       LIMIT 10`
+    );
+    console.log(`🔍 [DEBUG] Notificaciones sin push subscription: ${debugSinPush.length}`);
+    if (debugSinPush.length > 0) {
+      console.log('🔍 [DEBUG] Ejemplos de notificaciones sin push:', debugSinPush.map(n => ({
+        id: n.id,
+        fechaProgramada: n.fechaProgramada,
+        destinatario: n.destinatario,
+        pacienteId: n.pacienteId,
+        usuarioId: n.usuarioId,
+        notiWebPush: n.notiWebPush
+      })));
+    }
+
+    // 🔍 DEBUG: Verificar notificaciones con notiWebPush = 0
+    const [debugSinNotiWebPush] = await connection.query(
+      `SELECT n.id, n.fechaProgramada, n.destinatario, p.usuarioId, u.notiWebPush
+       FROM notificaciones n
+       INNER JOIN pacientes p ON n.pacienteId = p.id
+       INNER JOIN usuarios u ON p.usuarioId = u.id
+       WHERE n.estado = 'pendiente' 
+       AND n.fechaProgramada <= NOW()
+       AND n.destinatario = 'paciente'
+       AND u.notiWebPush = 0
+       LIMIT 10`
+    );
+    console.log(`🔍 [DEBUG] Notificaciones con notiWebPush = 0: ${debugSinNotiWebPush.length}`);
+    if (debugSinNotiWebPush.length > 0) {
+      console.log('🔍 [DEBUG] Ejemplos de notificaciones con notiWebPush = 0:', debugSinNotiWebPush);
+    }
+
+    // 🔍 DEBUG: Verificar push subscriptions disponibles
+    const [debugSubs] = await connection.query(
+      `SELECT userId, familiarId, endpoint FROM push_subscriptions LIMIT 10`
+    );
+    console.log(`🔍 [DEBUG] Push subscriptions disponibles: ${debugSubs.length}`);
+    if (debugSubs.length > 0) {
+      console.log('🔍 [DEBUG] Ejemplos de suscripciones:', debugSubs.map(s => ({
+        userId: s.userId,
+        familiarId: s.familiarId,
+        endpoint: s.endpoint ? s.endpoint.substring(0, 50) + '...' : null
+      })));
+    }
+
     // Consulta para obtener notificaciones pendientes
     const [notificaciones] = await connection.query(
       `SELECT 
           n.id, n.estado, n.fechaProgramada, n.mensaje, n.destinatario,
+          n.pacienteId, n.medicacionId,
           m.nombreMedicamento, m.dosis, 
-          u.nombre as nombrePaciente, u.notiWebPush,
-          ps.endpoint, ps.userId as subscriptionUserId,
+          u.nombre as nombrePaciente, u.notiWebPush, u.id as usuarioId,
+          ps.endpoint, ps.userId as subscriptionUserId, ps.familiarId as subscriptionFamiliarId,
           JSON_OBJECT('p256dh', ps.p256dh, 'auth', ps.auth) as subscriptionKeys
        FROM notificaciones n
        INNER JOIN medicaciones m ON n.medicacionId = m.id
