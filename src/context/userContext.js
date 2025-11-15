@@ -218,15 +218,11 @@ export const UserProvider = ({ children }) => {
     }
 
     if (isShowingWarningRef.current) {
-      console.log('[showWarning] Modal ya está mostrando, ignorando llamada');
       return;
     }
 
-    console.log('[showWarning] Mostrando modal de inactividad');
-    console.log('[showWarning] Usuario presente:', !!user);
     isShowingWarningRef.current = true;
     setShowInactivityWarning(true);
-    console.log('[showWarning] setShowInactivityWarning(true) llamado');
 
     inactivityWarningRef.current = setTimeout(() => {
       isShowingWarningRef.current = false;
@@ -415,8 +411,6 @@ export const UserProvider = ({ children }) => {
             });
           }
         }
-      } else {
-        console.log('[handleUserActivity] No reseteando timer - isShowingWarning:', isShowingWarningRef.current, 'isWarningActive:', authManager.isWarningActive, 'isModalActive:', isModalActiveRef.current);
       }
     };
 
@@ -459,16 +453,10 @@ export const UserProvider = ({ children }) => {
     };
   }, [user, handleInactiveLogout, showWarning]);
 
-  // Monitorear cambios en showInactivityWarning para debugging y actualizar el ref
+  // Actualizar ref cuando cambia showInactivityWarning
   useEffect(() => {
-    console.log('[useEffect] showInactivityWarning cambió a:', showInactivityWarning);
-    console.log('[useEffect] Usuario presente:', !!user);
     isModalActiveRef.current = showInactivityWarning && !!user;
-    if (showInactivityWarning && user) {
-      console.log('[useEffect] ✅ Condiciones cumplidas para mostrar modal');
-      console.log('[useEffect] isModalActiveRef.current establecido a:', isModalActiveRef.current);
-    } else {
-      console.log('[useEffect] ❌ Condiciones NO cumplidas - showInactivityWarning:', showInactivityWarning, 'user:', !!user);
+    if (!showInactivityWarning || !user) {
       isShowingWarningRef.current = false;
     }
   }, [showInactivityWarning, user]);
@@ -1105,7 +1093,6 @@ export const UserProvider = ({ children }) => {
       {children}
 
       {/* Modal de advertencia de inactividad */}
-      {console.log('[Modal Render] showInactivityWarning:', showInactivityWarning, 'user:', !!user, 'debería renderizar:', showInactivityWarning && user)}
       {showInactivityWarning && user && (
         <div 
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]" 
