@@ -148,7 +148,7 @@ async function askOpenRouter(message) {
       headers: {
         'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'http://tusitio.com', 
+        'HTTP-Referer': 'https://mediappweb.online', 
         'X-Title': 'ChatMedico'
       },
       body: JSON.stringify({
