@@ -87,6 +87,20 @@ export async function POST(request) {
 
     console.log('✅ Suscripción guardada correctamente:', result.insertId);
 
+    // ✅ Actualizar notiWebPush = 1 si es un usuario (no familiar)
+    if (subscription.userId) {
+      try {
+        await connection.query(
+          'UPDATE usuarios SET notiWebPush = 1 WHERE id = ?',
+          [subscription.userId]
+        );
+        console.log(`✅ notiWebPush actualizado a 1 para usuario ${subscription.userId}`);
+      } catch (updateError) {
+        console.error('⚠️ Error al actualizar notiWebPush (no crítico):', updateError);
+        // No fallar la operación si esto falla
+      }
+    }
+
     return NextResponse.json({ 
       message: 'Suscripción guardada correctamente',
       id: result.insertId 
