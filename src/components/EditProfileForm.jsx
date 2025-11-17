@@ -15,8 +15,8 @@ const EditProfileForm = ({ user, onSave, onCancel, availableDoctors = [] }) => {
     nombre: user.nombre || user.name || '',
     email: user.correo || user.email || '',
     telefono: (user.telefono !== null && user.telefono !== undefined) ? user.telefono : (user.phone || ''),
-    usuario: '',
-    contrasena: '',
+    usuario: user.usuario || user.username || '',
+    contrasena: '', // Siempre vacío por seguridad - solo se llena si se quiere cambiar
     rol: user.rol || 'paciente',
     doctorInfo: {
       especialidad: user.especialidadId || user.doctorInfo?.especialidad || user.especialidad || ''
@@ -73,8 +73,8 @@ const EditProfileForm = ({ user, onSave, onCancel, availableDoctors = [] }) => {
       nombre: user.nombre || user.name || '',
       email: user.correo || user.email || '',
       telefono: (user.telefono !== null && user.telefono !== undefined) ? user.telefono : (user.phone || ''),
-      usuario: '',
-      contrasena: '',
+      usuario: user.usuario || user.username || '', // Cargar el usuario actual
+      contrasena: '', // Siempre vacío por seguridad - solo se llena si se quiere cambiar
       rol: user.rol || 'paciente',
       doctorInfo: {
         especialidad: user.especialidadId || user.doctorInfo?.especialidad || user.especialidad || ''
@@ -210,10 +210,10 @@ const EditProfileForm = ({ user, onSave, onCancel, availableDoctors = [] }) => {
                 type="text"
                 name="usuario"
                 value={formData.usuario}
-                placeholder="Nuevo Usuario"
+                placeholder="Usuario actual"
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
-                maxLength={20}
+                maxLength={30}
               />
             </div>
 
@@ -223,10 +223,10 @@ const EditProfileForm = ({ user, onSave, onCancel, availableDoctors = [] }) => {
                 type="password"
                 name="contrasena"
                 value={formData.contrasena}
-                placeholder="Nueva contraseña"
+                placeholder="Dejar vacío para mantener la actual"
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
-                maxLength={20}
+                maxLength={30}
               />
             </div>
           </div>
