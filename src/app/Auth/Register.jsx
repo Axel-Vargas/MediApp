@@ -21,7 +21,6 @@ const Register = ({ onRegister, caregivers = [] }) => {
     doctorIds: [], 
     especialidad: ''
   });
-  const [showTermsError, setShowTermsError] = useState(false);
   const [showPolicyModal, setShowPolicyModal] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -158,7 +157,12 @@ const Register = ({ onRegister, caregivers = [] }) => {
     
     // Validar términos y condiciones
     if (!formData.acceptedTerms) {
-      setShowTermsError(true);
+      setToast({
+        show: true,
+        message: 'Debe aceptar los términos y condiciones para continuar.',
+        type: 'error',
+        duration: 3000
+      });
       return;
     }
     
@@ -253,7 +257,6 @@ const Register = ({ onRegister, caregivers = [] }) => {
   const handleConfirmRegistration = async () => {
     setShowConfirmationModal(false);
     setLoading(true);
-    setShowTermsError(false);
 
     try {
       const newUser = await onRegister(formData);
@@ -347,6 +350,7 @@ const Register = ({ onRegister, caregivers = [] }) => {
                 onChange={handleChange}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+                maxLength={50}
               />
             </div>
 
@@ -378,6 +382,7 @@ const Register = ({ onRegister, caregivers = [] }) => {
                 placeholder="correo@ejemplo.com"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                 autoComplete="email"
+                maxLength={50}
               />
             </div>
           </div>
@@ -398,6 +403,7 @@ const Register = ({ onRegister, caregivers = [] }) => {
                 onChange={handleChange}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+                maxLength={30}
               />
             </div>
 
@@ -410,6 +416,7 @@ const Register = ({ onRegister, caregivers = [] }) => {
                 onChange={handleChange}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+                maxLength={30}
               />
             </div>
           </div>
@@ -575,12 +582,6 @@ const Register = ({ onRegister, caregivers = [] }) => {
           onEdit={handleEditRegistration}
         />
 
-        {showTermsError && (
-          <div className="text-red-500 text-sm mb-2 text-center">
-            Debe aceptar los términos y condiciones para continuar.
-          </div>
-        )}
-        
         <div>
           <button
             type="submit"

@@ -564,7 +564,6 @@ export const UserProvider = ({ children }) => {
 
       return newFamilyMember;
     } catch (error) {
-      console.error('Error al agregar familiar:', error);
       throw error;
     }
   };

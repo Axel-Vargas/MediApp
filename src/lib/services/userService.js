@@ -352,7 +352,6 @@ export const userService = {
       });
       return response;
     } catch (error) {
-      console.error('Error al agregar familiar:', error);
       throw error;
     }
   },

@@ -334,13 +334,19 @@ export default function FamilyManagement() {
                 }
                 setShowAddForm(false);
               } catch (error) {
-                console.error('Error al agregar familiar:', error);
                 setToast({ 
                   show: true, 
                   message: error.message || 'Error al agregar el familiar', 
                   type: 'error' 
                 });
               }
+            }}
+            onError={(errorMessage) => {
+              setToast({
+                show: true,
+                message: errorMessage,
+                type: 'error'
+              });
             }}
             onCancel={() => setShowAddForm(false)}
           />

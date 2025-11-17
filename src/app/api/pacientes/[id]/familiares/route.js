@@ -7,20 +7,11 @@ export async function POST(request, { params }) {
   try {
     const { id } = await params;
     const { nombre, email, relacion, telefono } = await request.json();
-    
-    console.log('POST /api/pacientes/[id]/familiares - Datos recibidos:', {
-      pacienteId: id,
-      nombre,
-      email,
-      relacion,
-      telefono
-    });
 
     connection = await db.getConnection();
 
     // Validar que el paciente existe
     const [paciente] = await connection.query('SELECT id FROM pacientes WHERE id = ?', [id]);
-    console.log('Validación de paciente:', { pacienteId: id, pacienteEncontrado: paciente.length > 0 });
     
     if (paciente.length === 0) {
       if (connection) {
@@ -85,7 +76,6 @@ export async function POST(request, { params }) {
       throw error;
     }
   } catch (error) {
-    console.error('Error al agregar familiar:', error);
     return NextResponse.json(
       { error: 'Error interno del servidor al agregar familiar' },
       { status: 500 }

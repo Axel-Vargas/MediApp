@@ -1097,6 +1097,7 @@ export default function PatientList() {
                   value={editForm.name}
                   onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+                  maxLength={24}
                 />
               </div>
 
@@ -1111,6 +1112,7 @@ export default function PatientList() {
                     placeholder="Ej: 500"
                     className="w-full px-3 py-2 pr-20 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                     required
+                    maxLength={4}
                   />
                   <select
                     name="dosageUnit"

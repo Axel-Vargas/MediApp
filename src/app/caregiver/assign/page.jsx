@@ -246,6 +246,7 @@ export default function AssignMedication() {
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-blue-500 focus:outline-none"
                 required
+                maxLength={24}
               />
             </div>
             <div>
@@ -261,6 +262,7 @@ export default function AssignMedication() {
                   placeholder="Ej: 500"
                   className="w-full px-3 py-2 pr-20 border border-gray-300 rounded-md focus:border-blue-500 focus:outline-none"
                   required
+                  maxLength={4}
                 />
                 <select
                   name="dosageUnit"

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import { validatePhone, validateEmail } from '@/lib/utils/validators';
 
-const AddFamilyMemberForm = ({ onAdd }) => {
+const AddFamilyMemberForm = ({ onAdd, onError }) => {
   const [formData, setFormData] = useState({
     nombre: '',
     email: '',
@@ -10,14 +11,69 @@ const AddFamilyMemberForm = ({ onAdd }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    let finalValue = value;
+    if (name === 'telefono') {
+      // Solo permitir números
+      finalValue = value.replace(/[^0-9]/g, '');
+    }
+    
+    setFormData(prev => ({ ...prev, [name]: finalValue }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    console.log('Submitting family member:', formData);
+    // Validar todos los campos - NO permitir enviar si falta alguno
+    const validationErrors = [];
+    const camposFaltantes = [];
     
+    // Validar nombre
+    if (!formData.nombre || formData.nombre.trim() === '') {
+      camposFaltantes.push('nombre');
+      validationErrors.push('El nombre es requerido');
+    }
+    
+    // Validar relación
+    if (!formData.relacion || formData.relacion.trim() === '') {
+      camposFaltantes.push('relación');
+      validationErrors.push('La relación es requerida');
+    }
+    
+    // Validar email
+    if (!formData.email || formData.email.trim() === '') {
+      camposFaltantes.push('email');
+      validationErrors.push('El email es requerido');
+    } else if (!validateEmail(formData.email)) {
+      validationErrors.push('El email no es válido');
+    }
+    
+    // Validar teléfono
+    if (!formData.telefono || formData.telefono.trim() === '') {
+      camposFaltantes.push('teléfono');
+      validationErrors.push('El teléfono es requerido');
+    } else if (!validatePhone(formData.telefono)) {
+      validationErrors.push('El teléfono debe ser un número ecuatoriano válido.');
+    }
+    
+    // Si hay errores, mostrarlos en un toast y NO permitir agregar el familiar
+    if (validationErrors.length > 0) {
+      if (onError) {
+        let mensaje = '';
+        if (camposFaltantes.length > 0) {
+          mensaje = `Por favor completa todos los campos requeridos: ${camposFaltantes.join(', ')}.`;
+          if (validationErrors.length > camposFaltantes.length) {
+            mensaje += ' ' + validationErrors.filter((err, idx) => !err.includes('es requerido')).join('. ');
+          }
+        } else {
+          mensaje = validationErrors.join('. ');
+        }
+        onError(mensaje);
+      }
+      return;
+    }
+    
+    // Solo si TODOS los campos están completos y válidos, proceder
     onAdd({ ...formData });
     
     setFormData({
@@ -42,6 +98,7 @@ const AddFamilyMemberForm = ({ onAdd }) => {
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
               required
+              maxLength={45}
             />
           </div>
           <div>
@@ -78,6 +135,7 @@ const AddFamilyMemberForm = ({ onAdd }) => {
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
               required
+              maxLength={50}
             />
           </div>
           <div>
@@ -88,7 +146,10 @@ const AddFamilyMemberForm = ({ onAdd }) => {
               value={formData.telefono}
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
+              placeholder="0987654321 o 022345678"
               required
+              maxLength={10}
+              inputMode="numeric"
             />
           </div>
         </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Select from 'react-select';
 import ConfirmationModal from './ConfirmationModal';
 import Toast from './Toast';
-import { validatePhone } from '@/lib/utils/validators';
+import { validatePhone, validateEmail } from '@/lib/utils/validators';
 
 const EditProfileForm = ({ user, onSave, onCancel, availableDoctors = [] }) => {
   
@@ -111,6 +111,15 @@ const EditProfileForm = ({ user, onSave, onCancel, availableDoctors = [] }) => {
       return;
     }
     
+    if (formData.email && !validateEmail(formData.email)) {
+      setToast({
+        show: true,
+        message: 'Por favor ingresa un correo electrónico válido.',
+        type: 'error'
+      });
+      return;
+    }
+    
     const apiFormData = {
       nombre: formData.nombre,
       telefono: formData.telefono,
@@ -154,6 +163,7 @@ const EditProfileForm = ({ user, onSave, onCancel, availableDoctors = [] }) => {
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                 required
+                maxLength={24}
               />
             </div>
 
@@ -180,6 +190,7 @@ const EditProfileForm = ({ user, onSave, onCancel, availableDoctors = [] }) => {
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                 placeholder="correo@ejemplo.com"
+                maxLength={40}
               />
             </div>
           </div>
@@ -200,6 +211,7 @@ const EditProfileForm = ({ user, onSave, onCancel, availableDoctors = [] }) => {
                 placeholder="Nuevo Usuario"
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+                maxLength={20}
               />
             </div>
 
@@ -212,6 +224,7 @@ const EditProfileForm = ({ user, onSave, onCancel, availableDoctors = [] }) => {
                 placeholder="Nueva contraseña"
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+                maxLength={20}
               />
             </div>
           </div>
