@@ -65,9 +65,8 @@ export async function GET(request) {
     }
 
 
-    // Asegurarnos de que politicaAceptada sea un número (0 o 1) para mantener consistencia
-    // No convertir a booleano para que la verificación en el frontend funcione correctamente
-    usuario.politicaAceptada = usuario.politicaAceptada ? 1 : 0;
+    const politicaValue = Number(usuario.politicaAceptada);
+    usuario.politicaAceptada = (politicaValue === 1) ? 1 : 0;
 
     if (usuario.rol === 'doctor') {
       try {
