@@ -30,24 +30,22 @@ export async function PUT(request, { params }) {
     const allowedFields = ['nombre', 'telefono', 'correo', 'usuario', 'contrasena', 'politicaAceptada', 'politicaFecha'];
     const updateData = {};
     
+    let useNowForPoliticaFecha = false;
+    
     Object.keys(data).forEach(key => {
       if (allowedFields.includes(key) && data[key] !== undefined) {
-        // Manejar politicaFecha: convertir ISO string a formato MySQL datetime
+        // Manejar politicaFecha: usar NOW() de MySQL en lugar de convertir desde ISO string
         if (key === 'politicaFecha' && data[key]) {
-          try {
-            const fecha = new Date(data[key]);
-            if (!isNaN(fecha.getTime())) {
-              // Convertir a formato MySQL: YYYY-MM-DD HH:MM:SS
-              updateData[key] = fecha.toISOString().slice(0, 19).replace('T', ' ');
-            }
-          } catch (e) {
-            console.error('Error al convertir politicaFecha:', e);
-            // Si falla la conversión, usar la fecha actual
-            updateData[key] = new Date().toISOString().slice(0, 19).replace('T', ' ');
-          }
+          // Marcar para usar NOW() de MySQL en la consulta UPDATE
+          useNowForPoliticaFecha = true;
         } else if (key === 'politicaAceptada') {
           // Asegurar que politicaAceptada sea 0 o 1
-          updateData[key] = (data[key] === 1 || data[key] === true || data[key] === '1') ? 1 : 0;
+          const politicaValue = (data[key] === 1 || data[key] === true || data[key] === '1') ? 1 : 0;
+          updateData[key] = politicaValue;
+          // Si se está aceptando la política (valor = 1), también establecer politicaFecha con NOW()
+          if (politicaValue === 1) {
+            useNowForPoliticaFecha = true;
+          }
         } else if (data[key] !== '') {
           // Para otros campos, solo agregar si no está vacío
           updateData[key] = data[key];
@@ -79,7 +77,27 @@ export async function PUT(request, { params }) {
       if (updateData.usuario !== undefined) updateData.usuario = encryptToPacked(updateData.usuario);
     }
 
-    await connection.query('UPDATE usuarios SET ? WHERE id = ?', [updateData, id]);
+    // Si se debe usar NOW() para politicaFecha, construir la consulta SQL manualmente
+    if (useNowForPoliticaFecha) {
+      const setParts = [];
+      const values = [];
+      
+      Object.keys(updateData).forEach(key => {
+        setParts.push(`${key} = ?`);
+        values.push(updateData[key]);
+      });
+      
+      // Agregar politicaFecha con NOW()
+      setParts.push('politicaFecha = NOW()');
+      values.push(id);
+      
+      await connection.query(
+        `UPDATE usuarios SET ${setParts.join(', ')} WHERE id = ?`,
+        values
+      );
+    } else {
+      await connection.query('UPDATE usuarios SET ? WHERE id = ?', [updateData, id]);
+    }
 
     if (data.especialidad !== undefined) {
       const [doctor] = await connection.query('SELECT id FROM doctores WHERE usuarioId = ?', [id]);

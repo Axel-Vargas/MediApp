@@ -131,10 +131,6 @@ export async function POST(request) {
       }
     }
     
-    // Obtener la fecha actual para fechaRegistro y terminosFecha
-    const fechaRegistro = new Date().toISOString().slice(0, 19).replace('T', ' ');
-    const terminosFecha = new Date().toISOString().slice(0, 19).replace('T', ' ');
-    
     await connection.query('START TRANSACTION');
     
     try {
@@ -142,6 +138,7 @@ export async function POST(request) {
       const passwordHash = await bcrypt.hash(contrasena, 10);
 
       // 2. Insertar en columnas existentes; si hay clave, guardar empaquetado (iv.ct.tag)
+      // Usar NOW() de MySQL para obtener la fecha/hora en la zona horaria del servidor
       let result;
       if (isDataKeyConfigured()) {
         const pNombre = encryptToPacked(nombre);
@@ -153,7 +150,7 @@ export async function POST(request) {
             nombre, telefono, correo, rol, usuario, contrasena, fechaRegistro,
             politicaAceptada, politicaFecha, terminosAceptados, terminosFecha,
             notiWebPush, notiWhatsapp
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, NULL, ?, NOW(), ?, ?)`,
           [
             pNombre,
             pTelefono,
@@ -161,11 +158,8 @@ export async function POST(request) {
             rol || 'paciente',
             pUsuario,
             passwordHash,
-            fechaRegistro,
             0,
-            null,
             1,
-            terminosFecha,
             1,
             0
           ]
@@ -176,7 +170,7 @@ export async function POST(request) {
             nombre, telefono, correo, rol, usuario, contrasena, fechaRegistro,
             politicaAceptada, politicaFecha, terminosAceptados, terminosFecha,
             notiWebPush, notiWhatsapp
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, NULL, ?, NOW(), ?, ?)`,
           [
             nombre,
             telefono || null,
@@ -184,11 +178,8 @@ export async function POST(request) {
             rol || 'paciente',
             usuario,
             passwordHash,
-            fechaRegistro,
             0,
-            null,
             1,
-            terminosFecha,
             1,
             0
           ]

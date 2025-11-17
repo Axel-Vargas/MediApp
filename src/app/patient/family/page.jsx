@@ -32,20 +32,12 @@ export default function FamilyManagement() {
     // Verificar si la política NO está aceptada
     // Solo mostrar el modal si politicaAceptada es explícitamente 0, false, null o undefined
     const politicaAceptada = user.politicaAceptada;
-    
-    // Debug: verificar el valor que está llegando
-    console.log('[Family] politicaAceptada value:', politicaAceptada, 'type:', typeof politicaAceptada);
-    
-    // Verificar si NO está aceptada (0, false, null, undefined)
     const politicaNoAceptada = politicaAceptada === 0 || 
                                 politicaAceptada === false || 
                                 politicaAceptada === null || 
                                 politicaAceptada === undefined;
     
-    console.log('[Family] politicaNoAceptada:', politicaNoAceptada);
-    
     if (politicaNoAceptada) {
-      console.log('[Family] Mostrando modal de política');
       setShowPolicyModal(true);
       setLoadingFamilyMembers(false);
       setLoadingDoctor(false);
@@ -108,8 +100,8 @@ export default function FamilyManagement() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          politicaAceptada: 1,
-          politicaFecha: new Date().toISOString()
+          politicaAceptada: 1
+          // politicaFecha se establecerá automáticamente con NOW() en el backend
         }),
       });
       
