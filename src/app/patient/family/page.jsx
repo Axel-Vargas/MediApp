@@ -29,7 +29,16 @@ export default function FamilyManagement() {
       return;
     }
         
-    if (user.politicaAceptada === false || user.politicaAceptada === 0) {
+    const politicaAceptada = user.politicaAceptada;
+    const politicaNoAceptada = politicaAceptada === false || 
+                                politicaAceptada === 0 || 
+                                politicaAceptada === null || 
+                                politicaAceptada === undefined ||
+                                politicaAceptada === '0' ||
+                                politicaAceptada === 'false' ||
+                                !politicaAceptada;
+    
+    if (politicaNoAceptada) {
       setShowPolicyModal(true);
       setLoadingFamilyMembers(false);
       setLoadingDoctor(false);
