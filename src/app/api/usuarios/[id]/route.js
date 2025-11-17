@@ -31,8 +31,27 @@ export async function PUT(request, { params }) {
     const updateData = {};
     
     Object.keys(data).forEach(key => {
-      if (allowedFields.includes(key) && data[key] !== undefined && data[key] !== '') {
-        updateData[key] = data[key];
+      if (allowedFields.includes(key) && data[key] !== undefined) {
+        // Manejar politicaFecha: convertir ISO string a formato MySQL datetime
+        if (key === 'politicaFecha' && data[key]) {
+          try {
+            const fecha = new Date(data[key]);
+            if (!isNaN(fecha.getTime())) {
+              // Convertir a formato MySQL: YYYY-MM-DD HH:MM:SS
+              updateData[key] = fecha.toISOString().slice(0, 19).replace('T', ' ');
+            }
+          } catch (e) {
+            console.error('Error al convertir politicaFecha:', e);
+            // Si falla la conversión, usar la fecha actual
+            updateData[key] = new Date().toISOString().slice(0, 19).replace('T', ' ');
+          }
+        } else if (key === 'politicaAceptada') {
+          // Asegurar que politicaAceptada sea 0 o 1
+          updateData[key] = (data[key] === 1 || data[key] === true || data[key] === '1') ? 1 : 0;
+        } else if (data[key] !== '') {
+          // Para otros campos, solo agregar si no está vacío
+          updateData[key] = data[key];
+        }
       }
     });
 
