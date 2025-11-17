@@ -29,16 +29,23 @@ export default function FamilyManagement() {
       return;
     }
         
+    // Verificar si la política NO está aceptada
+    // Solo mostrar el modal si politicaAceptada es explícitamente 0, false, null o undefined
     const politicaAceptada = user.politicaAceptada;
-    const politicaNoAceptada = politicaAceptada === false || 
-                                politicaAceptada === 0 || 
+    
+    // Debug: verificar el valor que está llegando
+    console.log('[Family] politicaAceptada value:', politicaAceptada, 'type:', typeof politicaAceptada);
+    
+    // Verificar si NO está aceptada (0, false, null, undefined)
+    const politicaNoAceptada = politicaAceptada === 0 || 
+                                politicaAceptada === false || 
                                 politicaAceptada === null || 
-                                politicaAceptada === undefined ||
-                                politicaAceptada === '0' ||
-                                politicaAceptada === 'false' ||
-                                !politicaAceptada;
+                                politicaAceptada === undefined;
+    
+    console.log('[Family] politicaNoAceptada:', politicaNoAceptada);
     
     if (politicaNoAceptada) {
+      console.log('[Family] Mostrando modal de política');
       setShowPolicyModal(true);
       setLoadingFamilyMembers(false);
       setLoadingDoctor(false);
