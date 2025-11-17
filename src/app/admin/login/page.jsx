@@ -135,6 +135,7 @@ const AdminLogin = () => {
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-0 focus:ring-blue-500 focus:border-blue-500 focus:outline-none placeholder-gray-400"
               placeholder="Ingrese su usuario"
+              maxLength={30}
             />
           </div>
 
@@ -150,6 +151,7 @@ const AdminLogin = () => {
                 required
                 className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:ring-0 focus:ring-blue-500 focus:border-blue-500 focus:outline-none placeholder-gray-400"
                 placeholder="Ingrese su contraseña"
+                maxLength={30}
               />
               <button
                 type="button"

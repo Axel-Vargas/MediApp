@@ -14,8 +14,9 @@ const AddFamilyMemberForm = ({ onAdd, onError }) => {
     
     let finalValue = value;
     if (name === 'telefono') {
-      // Solo permitir números
       finalValue = value.replace(/[^0-9]/g, '');
+    } else if (name === 'nombre') {
+      finalValue = value.replace(/[0-9]/g, '');
     }
     
     setFormData(prev => ({ ...prev, [name]: finalValue }));
@@ -146,7 +147,7 @@ const AddFamilyMemberForm = ({ onAdd, onError }) => {
               value={formData.telefono}
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
-              placeholder="0987654321 o 022345678"
+              placeholder="Ingrese su número de teléfono"
               required
               maxLength={10}
               inputMode="numeric"

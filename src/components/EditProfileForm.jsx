@@ -92,6 +92,8 @@ const EditProfileForm = ({ user, onSave, onCancel, availableDoctors = [] }) => {
     let finalValue = value;
     if (name === 'telefono') {
       finalValue = value.replace(/[^0-9]/g, '');
+    } else if (name === 'nombre') {
+      finalValue = value.replace(/[0-9]/g, '');
     }
 
     setFormData(prev => ({ ...prev, [name]: finalValue }));

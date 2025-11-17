@@ -195,6 +195,7 @@ const Login = ({ onLogin }) => {
             onBlur={() => setTouched((prev) => ({ ...prev, username: true }))}
             className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none border-gray-300`}
             disabled={loading}
+            maxLength={30}
           />
         </div>
         <div className="mb-6">
@@ -210,6 +211,7 @@ const Login = ({ onLogin }) => {
               onBlur={() => setTouched((prev) => ({ ...prev, password: true }))}
               className={`w-full px-3 py-2 pr-10 border rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none border-gray-300`}
               disabled={loading}
+              maxLength={30}
             />
             <button
               type="button"

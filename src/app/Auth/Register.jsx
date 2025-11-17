@@ -122,9 +122,15 @@ const Register = ({ onRegister, caregivers = [] }) => {
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     
-    const sanitizedValue = type === 'checkbox' 
-      ? checked 
-      : sanitizeField(name, value);
+    let sanitizedValue;
+    if (type === 'checkbox') {
+      sanitizedValue = checked;
+    } else if (name === 'name') {
+      // No permitir números en el campo nombre
+      sanitizedValue = sanitizeField(name, value).replace(/[0-9]/g, '');
+    } else {
+      sanitizedValue = sanitizeField(name, value);
+    }
     
     setFormData(prev => ({
       ...prev,
