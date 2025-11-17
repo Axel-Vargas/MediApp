@@ -34,25 +34,10 @@ self.addEventListener('activate', (event) => {
 
 // Manejo de notificaciones push
 self.addEventListener('push', async (event) => {
-  console.log('[SW] ===== Evento push recibido =====');
-  console.log('[SW] Origen del evento:', event.origin);
-  console.log('[SW] URL del Service Worker:', self.registration.scope);
-  
   // Forzar que el service worker se active inmediatamente
   event.waitUntil(
-    self.clients.claim().then(() => {
-      console.log('[SW] Service Worker reclamó el control de los clientes');
-    })
+    self.clients.claim()
   );
-  
-  // Mostrar información detallada del evento
-  console.group('[SW] Detalles del evento push:');
-  console.log('Tipo:', event.type);
-  console.log('Burbujea:', event.bubbles);
-  console.log('Cancelable:', event.cancelable);
-  console.log('Composición:', event.composed);
-  console.log('TimeStamp:', new Date(event.timeStamp).toISOString());
-  console.groupEnd();
   
   // Procesar los datos del push
   let payload = 'Sin datos';
@@ -61,7 +46,6 @@ self.addEventListener('push', async (event) => {
       try {
         // Intentar parsear como JSON primero
         payload = event.data.json();
-        console.log('[SW] Payload (JSON):', JSON.stringify(payload, null, 2));
       } catch (e) {
         // Si falla, intentar como texto plano
         payload = event.data.text();
@@ -157,8 +141,6 @@ self.addEventListener('push', async (event) => {
           return self.registration.showNotification(title, notificationOptions);
         })
         .then(() => {
-          console.log('[SW] Notificación mostrada correctamente');
-          
           return self.clients.matchAll({ type: 'window' });
         })
         .then(clients => {
