@@ -3,9 +3,48 @@ import db from '@/lib/db';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
+// Función para normalizar el texto antes de procesarlo
+function normalizeInputText(text) {
+  if (!text) return '';
+  
+  let normalized = text.toLowerCase().trim();
+  
+  // Reemplazar abreviaciones comunes (orden importante: primero las más específicas)
+  // Reemplazar "q " (q seguido de espacio) por "que "
+  normalized = normalized.replace(/\bq\s+/g, 'que ');
+  // Reemplazar "q" (q como palabra completa) por "que"
+  normalized = normalized.replace(/\bq\b/g, 'que');
+  
+  // Reemplazar "pq" por "porque"
+  normalized = normalized.replace(/\bpq\b/g, 'porque');
+  normalized = normalized.replace(/\bpq\s+/g, 'porque ');
+  
+  // Reemplazar "pa" por "para" (solo si no es parte de otra palabra)
+  normalized = normalized.replace(/\bpa\s+/g, 'para ');
+  normalized = normalized.replace(/\bpa\b/g, 'para');
+  
+  // Reemplazar "x" por "por"
+  normalized = normalized.replace(/\bx\s+/g, 'por ');
+  normalized = normalized.replace(/\bx\b/g, 'por');
+  
+  // Reemplazar "d" por "de" (solo si es palabra completa seguida de espacio)
+  normalized = normalized.replace(/\bd\s+/g, 'de ');
+  
+  // Normalizar nombres de medicamentos comunes
+  normalized = normalized.replace(/\bacetaminofen\b/g, 'paracetamol');
+  
+  // Limpiar espacios múltiples
+  normalized = normalized.replace(/\s+/g, ' ').trim();
+  
+  return normalized;
+}
+
 function detectMedicationIntent(message) {
-  const lowerMessage = message.toLowerCase().trim();
-  console.log('Analizando mensaje:', lowerMessage);
+  // Normalizar el mensaje antes de analizarlo
+  const normalizedMessage = normalizeInputText(message);
+  const lowerMessage = normalizedMessage.toLowerCase().trim();
+  console.log('Analizando mensaje original:', message);
+  console.log('Analizando mensaje normalizado:', lowerMessage);
   
   // Detección de consulta sobre consecuencias (tiene prioridad)
   const isConsequenceQuery = /\b(qu[eé] pasa si|qu[eé] sucede si|consecuencia|peligro|riesgo|pasa si no|sucede si no)\b/i.test(lowerMessage) && 
@@ -143,6 +182,9 @@ function formatMedicationsResponse(medications, options = {}) {
 
 async function askOpenRouter(message) {
   try {
+    // Normalizar el mensaje antes de enviarlo a la API
+    const normalizedMessage = normalizeInputText(message);
+    
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -159,43 +201,79 @@ async function askOpenRouter(message) {
             content: 'Eres un asistente médico. Responde de forma clara y concisa (30-40 palabras máximo). ' +
                     'Solo temas médicos. Si no es sobre salud, di que solo puedes ayudar con medicina. ' +
                     'Sé directo y evita rodeos. Usa viñetas si es necesario. ' +
-                    'Si es urgente, recomienda ver a un médico.'
+                    'Si es urgente, recomienda ver a un médico. ' +
+                    'Siempre proporciona una respuesta útil, incluso si la pregunta está mal escrita.'
           },
-          { role: 'user', content: message }
+          { role: 'user', content: normalizedMessage }
         ],
-        max_tokens: 100,  
+        max_tokens: 150,  // Aumentado para respuestas más completas
         temperature: 0.3, 
         top_p: 0.7,      
-        frequency_penalty: 0.7, 
+        frequency_penalty: 0.5,  // Reducido para permitir más flexibilidad
         presence_penalty: 0.3,
         stop: ["</s>", "<s>", "[INST]", "[/INST]"]
       })
     });
 
+    if (!response.ok) {
+      console.error('Error en respuesta de OpenRouter:', response.status, response.statusText);
+      throw new Error(`Error en API: ${response.status}`);
+    }
+
     const data = await response.json();
-    let aiResponse = data.choices?.[0]?.message?.content || "Lo siento, no pude entenderte bien.";
     
+    // Validar que la respuesta tenga contenido
+    let aiResponse = data.choices?.[0]?.message?.content || 
+                     data.choices?.[0]?.text || 
+                     "Lo siento, no pude entenderte bien. ¿Podrías reformular tu pregunta?";
+    
+    // Limpiar la respuesta
     aiResponse = aiResponse
       .replace(/<\/s>/g, '')           
       .replace(/<s>/g, '')             
       .replace(/\[\/INST\]/g, '')      
       .replace(/\[INST\]/g, '')        
-      .trim();                         
+      .trim();
+    
+    // Si después de limpiar está vacío, devolver mensaje por defecto
+    if (!aiResponse || aiResponse.length === 0) {
+      aiResponse = "Lo siento, no pude generar una respuesta. Por favor, intenta reformular tu pregunta de otra manera.";
+    }
     
     return aiResponse;
   } catch (error) {
     console.error('Error con OpenRouter:', error);
-    return "Lo siento, hubo un problema al procesar tu pregunta.";
+    return "Lo siento, hubo un problema al procesar tu pregunta. Por favor, intenta de nuevo.";
   }
 }
 
 export async function POST(request) {
   try {
     const { messages, pacienteId } = await request.json();
+    
+    // Validar que haya mensajes
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      return NextResponse.json(
+        { text: 'Por favor, envía un mensaje válido.' },
+        { status: 400 }
+      );
+    }
+    
     const lastUserMessage = messages[messages.length - 1];
+    
+    // Validar que el mensaje tenga texto
+    if (!lastUserMessage || !lastUserMessage.text || !lastUserMessage.text.trim()) {
+      return NextResponse.json(
+        { text: 'Por favor, escribe una pregunta o mensaje.' },
+        { status: 400 }
+      );
+    }
+
+    // Normalizar el mensaje antes de procesarlo
+    const normalizedText = normalizeInputText(lastUserMessage.text);
 
     // 1. Consulta por medicamentos
-    const intent = detectMedicationIntent(lastUserMessage.text);
+    const intent = detectMedicationIntent(normalizedText);
     if (intent.isMedicationQuery && pacienteId) {
       const medications = await getPatientMedications(pacienteId, { activeOnly: true });
       
@@ -212,6 +290,11 @@ export async function POST(request) {
           responseText = formatMedicationsResponse(medications);
         }
         
+        // Validar que la respuesta no esté vacía
+        if (!responseText || !responseText.trim()) {
+          responseText = "No se encontraron medicamentos activos registrados.";
+        }
+        
         return NextResponse.json({ text: responseText });
       } else {
         return NextResponse.json({ text: "No se encontraron medicamentos activos registrados." });
@@ -219,13 +302,21 @@ export async function POST(request) {
     }
 
     // 2. Consulta genérica a OpenRouter
-    const aiReply = await askOpenRouter(lastUserMessage.text);
+    const aiReply = await askOpenRouter(normalizedText);
+    
+    // Validar que la respuesta no esté vacía
+    if (!aiReply || !aiReply.trim()) {
+      return NextResponse.json({ 
+        text: 'Lo siento, no pude generar una respuesta. Por favor, intenta reformular tu pregunta.' 
+      });
+    }
+    
     return NextResponse.json({ text: aiReply });
 
   } catch (error) {
     console.error('Error en el endpoint de chat:', error);
     return NextResponse.json(
-      { error: 'Lo siento, hubo un problema. Intenta de nuevo más tarde.' },
+      { text: 'Lo siento, hubo un problema. Intenta de nuevo más tarde.' },
       { status: 500 }
     );
   }

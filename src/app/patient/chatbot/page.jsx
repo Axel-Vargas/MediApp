@@ -7,6 +7,48 @@ import { useRouter } from "next/navigation";
 
 const MAX_MESSAGE_LENGTH = 70;
 
+// Función para normalizar el texto del usuario
+function normalizeText(text) {
+  if (!text) return '';
+  
+  // Convertir a minúsculas para normalizar
+  let normalized = text.toLowerCase().trim();
+  
+  // Reemplazar abreviaciones comunes (orden importante: primero las más específicas)
+  // Reemplazar "q " (q seguido de espacio) por "que "
+  normalized = normalized.replace(/\bq\s+/g, 'que ');
+  // Reemplazar "q" (q como palabra completa) por "que"
+  normalized = normalized.replace(/\bq\b/g, 'que');
+  
+  // Reemplazar "pq" por "porque"
+  normalized = normalized.replace(/\bpq\b/g, 'porque');
+  normalized = normalized.replace(/\bpq\s+/g, 'porque ');
+  
+  // Reemplazar "pa" por "para" (solo si no es parte de otra palabra)
+  normalized = normalized.replace(/\bpa\s+/g, 'para ');
+  normalized = normalized.replace(/\bpa\b/g, 'para');
+  
+  // Reemplazar "x" por "por"
+  normalized = normalized.replace(/\bx\s+/g, 'por ');
+  normalized = normalized.replace(/\bx\b/g, 'por');
+  
+  // Reemplazar "d" por "de" (solo si es palabra completa)
+  normalized = normalized.replace(/\bd\s+/g, 'de ');
+  
+  // Normalizar nombres de medicamentos comunes
+  normalized = normalized.replace(/\bacetaminofen\b/g, 'paracetamol');
+  
+  // Limpiar espacios múltiples
+  normalized = normalized.replace(/\s+/g, ' ').trim();
+  
+  // Capitalizar primera letra
+  if (normalized.length > 0) {
+    normalized = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  }
+  
+  return normalized;
+}
+
 export default function Chatbot() {
   const { user, loading, pacienteId, patientMedications, loadPatientMedications } = useUser();
   const router = useRouter();
@@ -72,9 +114,12 @@ export default function Chatbot() {
     const trimmedMessage = inputValue.trim();
     if (!trimmedMessage || isLoading || trimmedMessage.length > MAX_MESSAGE_LENGTH) return;
 
+    // Normalizar el mensaje antes de enviarlo
+    const normalizedMessage = normalizeText(trimmedMessage);
+
     const userMessage = {
       id: Date.now(),
-      text: trimmedMessage,
+      text: trimmedMessage, // Mostrar el mensaje original al usuario
       sender: "user"
     };
 
@@ -90,7 +135,7 @@ export default function Chatbot() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          messages: [...messages, userMessage],
+          messages: [...messages, { ...userMessage, text: normalizedMessage }], // Enviar mensaje normalizado
           pacienteId: pacienteId
         }),
       });
@@ -101,16 +146,20 @@ export default function Chatbot() {
 
       const data = await response.json();
 
+      // Validar que la respuesta tenga contenido
+      const botResponseText = data?.text?.trim() || data?.error || 'Lo siento, no pude generar una respuesta. Por favor, intenta reformular tu pregunta.';
+
       const botMessage = {
         id: Date.now() + 1,
-        text: data.text,
+        text: botResponseText,
         sender: "bot"
       };
       setMessages(prev => [...prev, botMessage]);
     } catch (err) {
+      console.error('Error al enviar mensaje:', err);
       setMessages(prev => [...prev, {
         id: Date.now() + 2,
-        text: 'Hubo un error al procesar tu mensaje.',
+        text: 'Hubo un error al procesar tu mensaje. Por favor, intenta de nuevo.',
         sender: "bot"
       }]);
     } finally {
