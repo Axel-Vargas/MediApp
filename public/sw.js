@@ -12,6 +12,20 @@ const decryptFromPacked = async (packed) => {
   }
 };
 
+// Función para procesar los datos de la notificación (disponible globalmente)
+const processNotificationData = async (data) => {
+  try {
+    if (!data) return data;
+    
+    const processedData = { ...data };
+    
+    return processedData;
+  } catch (error) {
+    console.error('Error al procesar datos de notificación:', error);
+    return data;
+  }
+};
+
 // Instalación del service worker
 self.addEventListener('install', (event) => {
   console.log('[Service Worker] Instalado');
@@ -56,20 +70,6 @@ self.addEventListener('push', async (event) => {
     console.error('[SW] Error al procesar push:', error);
     payload = 'Error al procesar notificación';
   }
-
-  // Función para procesar los datos de la notificación
-  const processNotificationData = async (data) => {
-    try {
-      if (!data) return data;
-      
-      const processedData = { ...data };
-      
-      return processedData;
-    } catch (error) {
-      console.error('Error al procesar datos de notificación:', error);
-      return data;
-    }
-  };
 
   // Procesar los datos de la notificación
   const processNotificationPayload = async (payload) => {
@@ -171,40 +171,114 @@ self.addEventListener('notificationclick', async (event) => {
   const action = event.action;
   console.log('Acción seleccionada:', action);
   
+  // Si se hace clic en la acción "tomar", registrar la toma directamente
   if (action === 'tomar') {
     console.log('El usuario marcó la medicación como tomada');
-    try {
-      const processedData = await processNotificationData(notificationData);
-      console.log('Datos procesados para la acción:', processedData);
-      
-      if (processedData.medicacionId) {
-        // Ejemplo de cómo podrías registrar la toma
-        // await fetch('/api/medicaciones/registrar-toma', {
-        //   method: 'POST',
-        //   headers: { 'Content-Type': 'application/json' },
-        //   body: JSON.stringify({
-        //     medicacionId: decryptedData.medicacionId,
-        //     fecha: new Date().toISOString()
-        //   })
-        // });
-      }
-    } catch (error) {
-      console.error('Error al procesar la acción de la notificación:', error);
-    }
+    
+    // NO intentar abrir el navegador cuando se hace clic en "tomar"
+    event.waitUntil(
+      (async () => {
+        try {
+          const processedData = await processNotificationData(notificationData);
+          console.log('Datos procesados para la acción:', processedData);
+          
+          // Verificar que tenemos los datos necesarios
+          if (!processedData.medicacionId || !processedData.pacienteId) {
+            console.error('❌ Faltan datos necesarios:', {
+              medicacionId: processedData.medicacionId,
+              pacienteId: processedData.pacienteId
+            });
+            
+            await self.registration.showNotification('Error al registrar', {
+              body: 'Faltan datos necesarios. Por favor, abre la aplicación para registrar la toma.',
+              icon: '/icons/icon-192x192.png',
+              badge: '/icons/badge-72x72.png',
+              tag: 'medication-error',
+              requireInteraction: false
+            });
+            return;
+          }
+          
+          // Registrar la toma directamente desde el service worker
+          // El pacienteId ya viene en el payload de la notificación
+          // Las cookies HTTP se envían automáticamente con credentials: 'include'
+          const response = await fetch(`/api/medicaciones/${processedData.medicacionId}/tomar`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+              pacienteId: processedData.pacienteId 
+            }),
+            credentials: 'include' // Envía cookies HTTP automáticamente (incluye authToken si existe)
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            console.log('✅ Medicación marcada como tomada:', result);
+            
+            // Mostrar una notificación de confirmación
+            await self.registration.showNotification('✅ Medicación registrada', {
+              body: `Has marcado ${processedData.nombreMedicamento || 'la medicación'} como tomada`,
+              icon: '/icons/icon-192x192.png',
+              badge: '/icons/badge-72x72.png',
+              tag: 'medication-taken',
+              requireInteraction: false,
+              silent: false
+            });
+          } else {
+            const error = await response.json();
+            console.error('❌ Error al registrar la toma:', error);
+            
+            // Mostrar notificación de error
+            await self.registration.showNotification('Error al registrar', {
+              body: error.message || 'No se pudo registrar la toma. Intenta desde la aplicación.',
+              icon: '/icons/icon-192x192.png',
+              badge: '/icons/badge-72x72.png',
+              tag: 'medication-error',
+              requireInteraction: false
+            });
+          }
+        } catch (fetchError) {
+          console.error('❌ Error de red al registrar la toma:', fetchError);
+          
+          // Mostrar notificación de error de red
+          await self.registration.showNotification('Error de conexión', {
+            body: 'No se pudo conectar al servidor. Intenta desde la aplicación.',
+            icon: '/icons/icon-192x192.png',
+            badge: '/icons/badge-72x72.png',
+            tag: 'medication-error',
+            requireInteraction: false
+          });
+        }
+      })()
+    );
+    
+    // NO intentar abrir el navegador cuando se hace clic en "tomar"
+    return;
   }
   
-  // Abrir la aplicación cuando se hace clic en la notificación
+  // Solo abrir la aplicación cuando se hace clic en la notificación (no en la acción)
   event.waitUntil(
-    clients.matchAll({ type: 'window' })
+    clients.matchAll({ 
+      type: 'window',
+      includeUncontrolled: true 
+    })
       .then((clientList) => {
+        // Buscar cualquier ventana abierta de la app
         for (const client of clientList) {
-          if (client.url === '/' && 'focus' in client) {
+          const url = new URL(client.url);
+          if (url.origin === self.location.origin && 'focus' in client) {
             return client.focus();
           }
         }
-        if (clients.openWindow) {
-          return clients.openWindow('/');
+        // Si no hay ventana abierta, intentar abrir una nueva
+        if (self.clients.openWindow) {
+          return self.clients.openWindow('/');
         }
+      })
+      .catch(error => {
+        console.error('Error al abrir ventana:', error);
       })
   );
 });
