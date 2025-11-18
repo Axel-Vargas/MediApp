@@ -82,6 +82,15 @@ export default function AssignMedication() {
     setFormData((prev) => ({ ...prev, times: [...prev.times, ""] }));
   };
 
+  const removeTimeField = (index) => {
+    if (formData.times.length > 1) {
+      setFormData((prev) => ({
+        ...prev,
+        times: prev.times.filter((_, i) => i !== index),
+      }));
+    }
+  };
+
   const handleFrequencyChange = (day) => {
     setFormData((prev) => {
       if (prev.frequency.includes(day)) {
@@ -386,7 +395,7 @@ export default function AssignMedication() {
               Horarios
             </label>
             {formData.times.map((time, index) => (
-              <div key={index} className="flex mb-2">
+              <div key={index} className="flex mb-2 gap-2">
                 <input
                   type="time"
                   value={time}
@@ -394,11 +403,22 @@ export default function AssignMedication() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-blue-500 focus:outline-none"
                   required
                 />
+                {formData.times.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeTimeField(index)}
+                    className="px-3 py-2 bg-red-100 text-red-600 rounded-md hover:bg-red-200 transition-colors"
+                    title="Eliminar horario"
+                  >
+                    ×
+                  </button>
+                )}
                 {index === formData.times.length - 1 && (
                   <button
                     type="button"
                     onClick={addTimeField}
-                    className="ml-2 px-3 py-2 bg-gray-100 rounded-md hover:bg-gray-200"
+                    className="px-3 py-2 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                    title="Agregar horario"
                   >
                     +
                   </button>
