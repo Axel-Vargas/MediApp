@@ -146,6 +146,12 @@ export async function DELETE(request, { params }) {
       );
     }
 
+    // Eliminar notificaciones relacionadas
+    await connection.query(
+      `DELETE FROM notificaciones WHERE medicacionId = ?`,
+      [medicacionId]
+    );
+
     // Eliminar registros relacionados en historial_tomas
     await connection.query(
       `DELETE FROM historial_tomas WHERE medicacionId = ?`,

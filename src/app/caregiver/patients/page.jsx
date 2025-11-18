@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useUser } from "@/context/userContext";
 import MedicationHistoryChart from "@/components/MedicationHistoryChart";
 import ConfirmationModal from "@/components/ConfirmationModal";
+import Toast from "@/components/Toast";
 
 export default function PatientList() {
   const { user, doctorPatientMedications, administrationRoutes, loadDoctorPatientMedications, loadAdministrationRoutes, invalidateMedicationHistory } = useUser();
@@ -13,6 +14,8 @@ export default function PatientList() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [medicationToDelete, setMedicationToDelete] = useState(null);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [isDeleting, setIsDeleting] = useState(false);
   const [editForm, setEditForm] = useState({
     name: '',
     dosage: '',
@@ -90,28 +93,53 @@ export default function PatientList() {
 
   // Función para eliminar una medicación
   const deleteMedication = async () => {
-    if (!medicationToDelete) return;
+    if (!medicationToDelete || isDeleting) return;
+
+    setIsDeleting(true);
 
     try {
       const response = await fetch(`/api/medicaciones/${medicationToDelete}`, {
         method: 'DELETE',
       });
 
+      const data = await response.json();
+
       if (response.ok) {
+        // Recargar las medicaciones
         await loadDoctorPatientMedications(true);
         if (selectedPatient?.id) {
           invalidateMedicationHistory(selectedPatient.id);
         }
+        
+        // Mostrar mensaje de éxito
+        setToast({
+          show: true,
+          message: 'Medicación eliminada correctamente',
+          type: 'success'
+        });
+        
+        // Cerrar el modal
         setShowDeleteModal(false);
         setMedicationToDelete(null);
       } else {
-        console.error('Error al eliminar la medicación');
+        // Mostrar mensaje de error
+        setToast({
+          show: true,
+          message: data.message || 'Error al eliminar la medicación',
+          type: 'error'
+        });
+        console.error('Error al eliminar la medicación:', data);
       }
     } catch (error) {
+      // Mostrar mensaje de error
+      setToast({
+        show: true,
+        message: 'Error de conexión al eliminar la medicación',
+        type: 'error'
+      });
       console.error('Error al eliminar la medicación:', error);
     } finally {
-      setShowDeleteModal(false);
-      setMedicationToDelete(null);
+      setIsDeleting(false);
     }
   };
 
@@ -1204,15 +1232,26 @@ export default function PatientList() {
       <ConfirmationModal
         isOpen={showDeleteModal}
         onClose={() => {
-          setShowDeleteModal(false);
-          setMedicationToDelete(null);
+          if (!isDeleting) {
+            setShowDeleteModal(false);
+            setMedicationToDelete(null);
+          }
         }}
         onConfirm={deleteMedication}
         title="Confirmar eliminación"
         message="¿Estás seguro de que quieres eliminar esta medicación? Esta acción no se puede deshacer."
-        confirmText="Eliminar"
+        confirmText={isDeleting ? "Eliminando..." : "Eliminar"}
         cancelText="Cancelar"
       />
+
+      {/* Toast para notificaciones */}
+      {toast.show && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ show: false, message: '', type: 'success' })}
+        />
+      )}
     </div>
   );
 }
