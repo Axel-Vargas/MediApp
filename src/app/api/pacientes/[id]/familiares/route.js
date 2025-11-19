@@ -179,7 +179,21 @@ export async function DELETE(request, { params }) {
     await connection.query('START TRANSACTION');
 
     try {
-      // 1. Eliminar la relación en pacientes_familiares
+      // 1. Eliminar suscripciones push asociadas al familiar
+      await connection.query(
+        'DELETE FROM push_subscriptions WHERE familiarId = ?',
+        [familiarId]
+      );
+      console.log(`Suscripciones push eliminadas para el familiar ${familiarId}`);
+
+      // 2. Eliminar notificaciones asociadas al familiar
+      await connection.query(
+        'DELETE FROM notificaciones WHERE familiarId = ?',
+        [familiarId]
+      );
+      console.log(`Notificaciones eliminadas para el familiar ${familiarId}`);
+
+      // 3. Eliminar la relación en pacientes_familiares
       await connection.query(
         'DELETE FROM pacientes_familiares WHERE pacienteId = ? AND familiarId = ?',
         [pacienteId, familiarId]
@@ -187,13 +201,13 @@ export async function DELETE(request, { params }) {
 
       console.log(`Relación eliminada para el familiar ${familiarId}`);
 
-      // 2. Verificar si el familiar tiene más relaciones
+      // 4. Verificar si el familiar tiene más relaciones
       const [otrasRelaciones] = await connection.query(
         'SELECT * FROM pacientes_familiares WHERE familiarId = ?',
         [familiarId]
       );
 
-      // 3. Si no hay más relaciones, eliminar el familiar
+      // 5. Si no hay más relaciones, eliminar el familiar
       if (otrasRelaciones.length === 0) {
         console.log(`Eliminando familiar ${familiarId} ya que no tiene más relaciones`);
         await connection.query('DELETE FROM familiares WHERE id = ?', [familiarId]);
