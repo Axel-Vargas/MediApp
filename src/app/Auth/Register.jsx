@@ -361,7 +361,7 @@ const Register = ({ onRegister, caregivers = [] }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Teléfono</label>
+              <label className="block text-sm font-medium text-gray-700">Teléfono móvil</label>
               <input
                 type="tel"
                 name="phone"
@@ -397,7 +397,7 @@ const Register = ({ onRegister, caregivers = [] }) => {
         <div className="relative">
           <div className="border-t border-gray-200"></div>
           <div className="absolute inset-x-0 top-[-12px] flex justify-center">
-            <span className="bg-white px-3 text-sm font-medium text-gray-900">Credenciales</span>
+            <span className="bg-white px-3 text-sm font-medium text-gray-900">Credenciales para el acceso</span>
           </div>
           <div className="grid grid-cols-2 gap-6 pt-6">
             <div>
@@ -408,6 +408,7 @@ const Register = ({ onRegister, caregivers = [] }) => {
                 value={formData.username}
                 onChange={handleChange}
                 required
+                placeholder="Ingrese un nombre de usuario"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                 maxLength={30}
               />
@@ -421,6 +422,7 @@ const Register = ({ onRegister, caregivers = [] }) => {
                 value={formData.password}
                 onChange={handleChange}
                 required
+                placeholder="Ingrese una contraseña"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                 maxLength={30}
               />

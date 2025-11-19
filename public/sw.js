@@ -113,6 +113,7 @@ self.addEventListener('push', async (event) => {
       requireInteraction: true,
       renotify: true,
       tag: NOTIFICATION_TAG,
+      silent: false,
       data: {
         url: '/',
         timestamp: Date.now(),

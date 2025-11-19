@@ -95,8 +95,114 @@ export const validateInput = (input) => {
  */
 export const validateEmail = (email) => {
   if (!email) return false;
-  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return re.test(String(email).toLowerCase());
+  
+  const emailStr = String(email).trim().toLowerCase();
+  
+  // Verificar longitud mínima y máxima
+  if (emailStr.length < 5 || emailStr.length > 254) {
+    return false;
+  }
+  
+  // Verificar que no tenga espacios
+  if (/\s/.test(emailStr)) {
+    return false;
+  }
+  
+  // Verificar formato básico: debe tener @ y al menos un punto después del @
+  if (!emailStr.includes('@')) {
+    return false;
+  }
+  
+  const parts = emailStr.split('@');
+  
+  // Debe tener exactamente una @
+  if (parts.length !== 2) {
+    return false;
+  }
+  
+  const [localPart, domain] = parts;
+  
+  // Validar parte local (antes del @)
+  if (!localPart || localPart.length === 0 || localPart.length > 64) {
+    return false;
+  }
+  
+  // La parte local no puede empezar o terminar con punto
+  if (localPart.startsWith('.') || localPart.endsWith('.')) {
+    return false;
+  }
+  
+  // No puede tener puntos consecutivos
+  if (localPart.includes('..')) {
+    return false;
+  }
+  
+  // Validar caracteres permitidos en la parte local
+  // Permitir: letras, números, puntos, guiones, guiones bajos, y el símbolo +
+  const localPartRegex = /^[a-z0-9._+-]+$/;
+  if (!localPartRegex.test(localPart)) {
+    return false;
+  }
+  
+  // Validar dominio (después del @)
+  if (!domain || domain.length === 0 || domain.length > 253) {
+    return false;
+  }
+  
+  // El dominio debe tener al menos un punto
+  if (!domain.includes('.')) {
+    return false;
+  }
+  
+  // El dominio no puede empezar o terminar con punto o guión
+  if (domain.startsWith('.') || domain.endsWith('.') || 
+      domain.startsWith('-') || domain.endsWith('-')) {
+    return false;
+  }
+  
+  // No puede tener puntos consecutivos en el dominio
+  if (domain.includes('..')) {
+    return false;
+  }
+  
+  // Validar que el dominio tenga una extensión válida (al menos 2 caracteres)
+  const domainParts = domain.split('.');
+  if (domainParts.length < 2) {
+    return false;
+  }
+  
+  const tld = domainParts[domainParts.length - 1];
+  if (!tld || tld.length < 2 || tld.length > 63) {
+    return false;
+  }
+  
+  // La extensión (TLD) solo puede contener letras
+  if (!/^[a-z]+$/.test(tld)) {
+    return false;
+  }
+  
+  // Validar cada parte del dominio
+  for (const part of domainParts) {
+    if (!part || part.length === 0 || part.length > 63) {
+      return false;
+    }
+    
+    // Cada parte no puede empezar o terminar con guión
+    if (part.startsWith('-') || part.endsWith('-')) {
+      return false;
+    }
+    
+    // Cada parte solo puede contener letras, números y guiones
+    if (!/^[a-z0-9-]+$/.test(part)) {
+      return false;
+    }
+  }
+  
+  // Patrón final más estricto para validar el formato completo
+  // Este regex es más estricto y valida el formato general
+  const emailRegex = /^[a-z0-9]([a-z0-9._+-]*[a-z0-9])?@[a-z0-9]([a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}$/i;
+  
+  return emailRegex.test(emailStr);
 };
 
 /**
