@@ -220,10 +220,22 @@ export const validatePhone = (phone) => {
     return false;
   }
   
-  const mobilePattern = /^09\d{8}$/;
-  const landlinePattern = /^0[2-7]\d{7}$/;
+  // Debe tener exactamente 10 dígitos
+  if (cleanPhone.length !== 10) {
+    return false;
+  }
   
-  return mobilePattern.test(cleanPhone) || landlinePattern.test(cleanPhone);
+  // Solo validar números celulares: 09X XXXXXXX
+  // Debe empezar con 09 y el tercer dígito debe ser entre 4-9 (operadoras: Movistar 098/099, Claro 097/096, CNT/Tuenti 095/094)
+  const mobilePattern = /^09[4-9]\d{7}$/;
+  
+  // Verificar que no sea todo el mismo dígito (ej: 0000000000, 1111111111)
+  if (/^(\d)\1{9}$/.test(cleanPhone)) {
+    return false;
+  }
+  
+  // Solo aceptar números celulares, no fijos
+  return mobilePattern.test(cleanPhone);
 };
 
 /**
@@ -235,12 +247,9 @@ export const formatEcuadorianPhone = (phone) => {
   
   const cleanPhone = phone.replace(/[\s\-()]/g, '');
   
-  if (/^09\d{8}$/.test(cleanPhone)) {
+  // Solo formatear números celulares: 09XX XXX XXX
+  if (/^09[4-9]\d{7}$/.test(cleanPhone)) {
     return `${cleanPhone.slice(0, 4)}-${cleanPhone.slice(4, 7)}-${cleanPhone.slice(7)}`;
-  }
-  
-  if (/^0[2-7]\d{7}$/.test(cleanPhone)) {
-    return `${cleanPhone.slice(0, 2)}-${cleanPhone.slice(2, 5)}-${cleanPhone.slice(5)}`;
   }
   
   return phone;
