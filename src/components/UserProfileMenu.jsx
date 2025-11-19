@@ -28,20 +28,20 @@ const UserProfileMenu = ({ user, onLogout, onUpdateProfile, availableDoctors = [
 
   return (
     <>
-      <div className="relative mr-0" ref={menuRef}>
+      <div className="relative mr-0 min-w-0" ref={menuRef}>
         <button
           onClick={(e) => {
             e.stopPropagation();
             setIsOpen(!isOpen);
           }}
-          className="flex items-center space-x-2 focus:outline-none"
+          className="flex items-center space-x-2 focus:outline-none min-w-0"
         >
-          <div className="relative">
+          <div className="relative flex-shrink-0">
             <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center">
               <span className="text-gray-600">{(user.nombre || user.username || 'U').charAt(0)}</span>
             </div>
           </div>
-          <span className="text-white font-bold text-lg">{user.nombre || user.username || 'Usuario'}</span>
+          <span className="text-white font-bold text-lg truncate max-w-[120px] md:max-w-none">{user.nombre || user.username || 'Usuario'}</span>
         </button>
 
         {isOpen && (
