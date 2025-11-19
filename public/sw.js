@@ -121,14 +121,24 @@ self.addEventListener('push', async (event) => {
       }
     };
 
+    // SOLO agregar la acción "tomar" si el destinatario es "paciente"
+    // Los familiares NO deben poder marcar la medicación como tomada
     if (self.Notification && self.Notification.maxActions > 0) {
-      notificationOptions.actions = [
-        {
-          action: 'tomar',
-          title: '✅ Tomar',
-          icon: '/icons/check-72x72.png'
-        }
-      ];
+      const destinatario = typeof notificationData === 'object' && notificationData.data 
+        ? notificationData.data.destinatario 
+        : null;
+      
+      // Solo agregar la acción si es para un paciente
+      if (destinatario === 'paciente') {
+        notificationOptions.actions = [
+          {
+            action: 'tomar',
+            title: '✅ Tomar',
+            icon: '/icons/check-72x72.png'
+          }
+        ];
+      }
+      // Si es para un familiar, no agregar acciones (no puede marcar como tomada)
     }
 
     // Mostrar la notificación
@@ -182,6 +192,19 @@ self.addEventListener('notificationclick', async (event) => {
         try {
           const processedData = await processNotificationData(notificationData);
           console.log('Datos procesados para la acción:', processedData);
+          
+          // Verificar que el destinatario sea "paciente" (seguridad adicional)
+          if (processedData.destinatario !== 'paciente') {
+            console.warn('⚠️ Intento de marcar medicación como tomada por un familiar. Acción bloqueada.');
+            await self.registration.showNotification('Acción no permitida', {
+              body: 'Solo el paciente puede marcar la medicación como tomada.',
+              icon: '/icons/icon-192x192.png',
+              badge: '/icons/badge-72x72.png',
+              tag: 'action-blocked',
+              requireInteraction: false
+            });
+            return;
+          }
           
           // Verificar que tenemos los datos necesarios
           if (!processedData.medicacionId || !processedData.pacienteId) {

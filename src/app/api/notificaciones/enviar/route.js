@@ -288,7 +288,8 @@ export async function POST(request) {
             url: '/',
             notificacionId: notificacion.id,
             medicacionId: notificacion.medicacionId,
-            pacienteId: notificacion.pacienteId
+            pacienteId: notificacion.pacienteId,
+            destinatario: notificacion.destinatario // Agregar el destinatario al payload
           });
 
           // Enviar notificación push
