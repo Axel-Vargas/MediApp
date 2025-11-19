@@ -94,6 +94,9 @@ const EditProfileForm = ({ user, onSave, onCancel, availableDoctors = [] }) => {
       finalValue = value.replace(/[^0-9]/g, '');
     } else if (name === 'nombre') {
       finalValue = value.replace(/[0-9]/g, '');
+    } else if (name === 'contrasena') {
+      // Solo permitir letras (mayúsculas y minúsculas) y números, sin espacios ni caracteres especiales
+      finalValue = value.replace(/[^a-zA-Z0-9]/g, '');
     }
 
     setFormData(prev => ({ ...prev, [name]: finalValue }));
@@ -120,6 +123,28 @@ const EditProfileForm = ({ user, onSave, onCancel, availableDoctors = [] }) => {
         type: 'error'
       });
       return;
+    }
+    
+    // Validar contraseña si se ingresó una
+    if (formData.contrasena) {
+      if (formData.contrasena.length < 8) {
+        setToast({
+          show: true,
+          message: 'La contraseña debe tener al menos 8 caracteres.',
+          type: 'error'
+        });
+        return;
+      }
+      
+      // Verificar que solo contenga letras y números (ya se filtra en handleChange, pero por seguridad)
+      if (!/^[a-zA-Z0-9]+$/.test(formData.contrasena)) {
+        setToast({
+          show: true,
+          message: 'La contraseña solo puede contener letras y números, sin espacios ni caracteres especiales.',
+          type: 'error'
+        });
+        return;
+      }
     }
     
     const apiFormData = {
@@ -227,7 +252,13 @@ const EditProfileForm = ({ user, onSave, onCancel, availableDoctors = [] }) => {
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                 maxLength={30}
+                minLength={8}
               />
+              {formData.contrasena && formData.contrasena.length > 0 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Mínimo 8 caracteres, solo letras y números
+                </p>
+              )}
             </div>
           </div>
         </div>
